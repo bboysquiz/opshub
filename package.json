@@ -1,0 +1,44 @@
+{
+  "name": "opshub",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "ports:free": "kill-port 3000 3001 3010",
+    "docker:up:db": "docker compose up -d db",
+    "docker:up:full": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "dev:core": "pnpm run ports:free && pnpm -r --parallel --filter server --filter host-nuxt --filter tickets-remote dev",
+    "dev:start": "pnpm docker:up:db && pnpm dev:core",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "prepare": "husky"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.30.2",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "eslint": "^10.0.2",
+    "eslint-plugin-vue": "^10.8.0",
+    "globals": "^17.3.0",
+    "husky": "^9.1.7",
+    "kill-port": "^2.0.1",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1",
+    "vue-eslint-parser": "^10.4.0"
+  },
+  "private": true,
+  "lint-staged": {
+    "*.{ts,js,vue,json,md,yml,yaml}": [
+      "prettier -w"
+    ],
+    "*.{ts,js,vue}": [
+      "eslint --fix"
+    ]
+  }
+}

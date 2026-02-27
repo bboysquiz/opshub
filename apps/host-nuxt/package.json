@@ -1,0 +1,24 @@
+{
+  "name": "host-nuxt",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "typecheck": "nuxt typecheck",
+    "dev": "nuxt dev --port 3000",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@opshub/shared-api": "workspace:*",
+    "@quasar/extras": "^1.17.0",
+    "nuxt": "^4.3.1",
+    "quasar": "^2.18.6",
+    "vue": "^3.5.28",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "sass-embedded": "^1.97.3"
+  }
+}

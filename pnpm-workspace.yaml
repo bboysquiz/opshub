@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+  - server
+
+ignoredBuiltDependencies:
+  - '@parcel/watcher'
+  - esbuild
