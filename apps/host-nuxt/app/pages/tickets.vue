@@ -1,20 +1,10 @@
 <template>
   <div class="q-pa-md">
-    <div class="text-h6 q-mb-md">
-      Host -> Tickets Remote
-    </div>
+    <div class="text-h6 q-mb-md">Host -> Tickets Remote</div>
 
-    <component
-      :is="RemoteComp"
-      v-if="RemoteComp"
-    />
-    <div v-else-if="!loadError">
-      Loading remote...
-    </div>
-    <div
-      v-else
-      class="text-negative"
-    >
+    <component :is="RemoteComp" v-if="RemoteComp" />
+    <div v-else-if="!loadError">Loading remote...</div>
+    <div v-else class="text-negative">
       {{ loadError }}
     </div>
   </div>

@@ -1,2 +1,9 @@
 export const APP_NAME = 'OpsHub';
-export const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3001';
+
+const runtimeProcess = (
+  globalThis as {
+    process?: { env?: Record<string, string | undefined> };
+  }
+).process;
+
+export const API_BASE_URL = runtimeProcess?.env?.API_BASE_URL ?? 'http://localhost:3001';

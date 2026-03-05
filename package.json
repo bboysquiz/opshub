@@ -34,11 +34,12 @@
   },
   "private": true,
   "lint-staged": {
-    "*.{ts,js,vue,json,md,yml,yaml}": [
+    "*.{ts,js,vue}": [
+      "eslint --fix",
       "prettier -w"
     ],
-    "*.{ts,js,vue}": [
-      "eslint --fix"
+    "*.{json,md,yml,yaml}": [
+      "prettier -w"
     ]
   }
 }

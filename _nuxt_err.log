@@ -1,0 +1,65 @@
+
+[41m[30m ERROR [39m[49m DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+1 │ @import './helpers/string.sass'
+  │         ^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    ..\..\..\..\..\quasar@2.18.6\node_modules\quasar\src\css\index.sass 1:9  root stylesheet
+
+
+
+[41m[30m ERROR [39m[49m DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+2 │ @import './helpers/math.sass'
+  │         ^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    ..\..\..\..\..\quasar@2.18.6\node_modules\quasar\src\css\index.sass 2:9  root stylesheet
+
+
+
+[41m[30m ERROR [39m[49m DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+4 │ @import './variables.sass'
+  │         ^^^^^^^^^^^^^^^^^^
+  ╵
+    ..\..\..\..\..\quasar@2.18.6\node_modules\quasar\src\css\index.sass 4:9  root stylesheet
+
+
+
+[41m[30m ERROR [39m[49m DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+5 │ @import './normalize.sass'
+  │         ^^^^^^^^^^^^^^^^^^
+  ╵
+    ..\..\..\..\..\quasar@2.18.6\node_modules\quasar\src\css\index.sass 5:9  root stylesheet
+
+
+
+[41m[30m ERROR [39m[49m DEPRECATION WARNING [import]: Sass @import rules are deprecated and will be removed in Dart Sass 3.0.0.
+
+More info and automated migrator: https://sass-lang.com/d/import
+
+  ╷
+7 │ @import '../components/icon/QIcon.sass'
+  │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  ╵
+    ..\..\..\..\..\quasar@2.18.6\node_modules\quasar\src\css\index.sass 7:9  root stylesheet
+
+
+
+[41m[30m ERROR [39m[49m WARNING: 85 repetitive deprecation warnings omitted.
+Run in verbose mode to see all warnings.
+
+

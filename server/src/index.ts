@@ -1,13 +1,8 @@
-import express from 'express';
+import { createApp } from './app/create-app';
+import { env } from './config/env';
 
-const app = express();
-app.use(express.json());
+const app = createApp();
 
-app.get('/health', (_req, res) => {
-  res.json({ ok: true });
-});
-
-const port = process.env.PORT ? Number(process.env.PORT) : 3001;
-app.listen(port, () => {
-  console.log(`server listening on :${port}`);
+app.listen(env.port, '0.0.0.0', () => {
+  console.log(`[server] listening on http://localhost:${env.port}`);
 });
