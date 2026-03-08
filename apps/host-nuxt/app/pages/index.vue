@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue';
 import { apiGet } from '@opshub/shared-api';
 import type { HealthResponse } from '../types/api';
-import { QBtn } from 'quasar';
 
 const health = ref<HealthResponse | null>(null);
 
@@ -12,11 +11,15 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="q-pa-md">
-    <div class="text-h5 q-mb-md">OpsHub Host</div>
-    <ClientOnly>
-      <QBtn label="Quasar работает" class="q-mb-md" />
-    </ClientOnly>
-    <pre v-if="health">{{ health }}</pre>
+  <div>
+    <h1 class="text-h5 q-mb-sm">Добро пожаловать в OpsHub</h1>
+    <div class="text-body1 text-grey-7">Выберите модуль в левом меню.</div>
+
+    <q-card class="q-mt-md">
+      <q-card-section>
+        <div class="text-subtitle1">Статус системы</div>
+        <div class="text-caption text-grey-7">Хост-оболочка запущена.</div>
+      </q-card-section>
+    </q-card>
   </div>
 </template>

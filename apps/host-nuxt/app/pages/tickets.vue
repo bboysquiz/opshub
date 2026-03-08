@@ -1,39 +1,32 @@
 <template>
-  <div class="q-pa-md">
-    <div class="text-h6 q-mb-md">Host -> Tickets Remote</div>
+  <div>
+    <h1 class="text-h5 q-mb-md">Tickets</h1>
 
-    <component :is="RemoteComp" v-if="RemoteComp" />
-    <div v-else-if="!loadError">Loading remote...</div>
-    <div v-else class="text-negative">
-      {{ loadError }}
-    </div>
+    <q-banner v-if="error" rounded class="bg-red-1 text-red-9 q-mb-md">
+      {{ error }}
+    </q-banner>
+
+    <q-card v-else-if="loading">
+      <q-card-section class="row items-center q-gutter-sm">
+        <q-spinner color="primary" />
+        <div>Loading remote module...</div>
+      </q-card-section>
+    </q-card>
+
+    <component :is="RemoteComp" v-else-if="RemoteComp" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, shallowRef, type Component } from 'vue';
-import type { RemoteContainer } from '../types/module-federation';
+import { useRemoteModule } from '~/composables/useRemoteModule';
 
-const RemoteComp = shallowRef<Component | null>(null);
-
-const loadError = shallowRef('');
-
-async function loadRemoteComponent(url: string, module: string) {
-  const container = (await import(/* @vite-ignore */ url)) as RemoteContainer;
-  await container.init?.({});
-  const factory = await container.get(module);
-  const mod = factory();
-  return typeof mod === 'object' && mod !== null && 'default' in mod ? mod.default : mod;
-}
-
-onMounted(async () => {
-  try {
-    RemoteComp.value = await loadRemoteComponent(
-      'http://localhost:3010/assets/remoteEntry.js',
-      './TicketsApp',
-    );
-  } catch (error) {
-    loadError.value = error instanceof Error ? error.message : 'Failed to load remote';
-  }
+const {
+  component: RemoteComp,
+  error,
+  loading,
+} = useRemoteModule({
+  entryUrl: 'http://localhost:3010/assets/remoteEntry.js',
+  loader: () => import('tickets_remote/TicketsApp'),
+  errorMessage: 'Failed to load tickets remote',
 });
 </script>
