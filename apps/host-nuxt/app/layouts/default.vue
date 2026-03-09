@@ -87,6 +87,20 @@
 </template>
 
 <script setup lang="ts">
+import { useQuasar } from 'quasar';
+import { watch } from 'vue';
 import { useUiStore } from '~/stores/ui';
+
+const $q = useQuasar();
 const ui = useUiStore();
+
+if (import.meta.client) {
+  watch(
+    () => $q.screen.gt.sm,
+    (isDesktop) => {
+      ui.setDrawer(isDesktop);
+    },
+    { immediate: true },
+  );
+}
 </script>

@@ -29,7 +29,11 @@ export default [
   },
 
   {
-    files: ['apps/host-nuxt/app/pages/**/*.vue'],
+    files: [
+      'apps/host-nuxt/app/app.vue',
+      'apps/host-nuxt/app/pages/**/*.vue',
+      'apps/host-nuxt/app/layouts/**/*.vue',
+    ],
     rules: {
       'vue/multi-word-component-names': 'off',
     },
