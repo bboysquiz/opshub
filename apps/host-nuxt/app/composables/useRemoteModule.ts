@@ -1,124 +1,124 @@
-import { onMounted, ref, shallowRef, type Component } from 'vue';
-
-declare global {
-  interface Window {
-    __opshubRemoteEntryLoaders__?: Record<string, Promise<void>>;
-  }
-}
+import { onMounted, ref, shallowRef, version as vueVersion, type Component } from 'vue';
 
 export type RemoteModule<T extends Component = Component> = {
   default: T;
 };
 
-export type RemoteModuleLoader<T extends Component = Component> = () => Promise<RemoteModule<T>>;
+type RemoteModuleFactoryResult<T extends Component = Component> = RemoteModule<T> | T;
 
-export type UseRemoteModuleOptions<T extends Component = Component> = {
+type RemoteModuleFactory<T extends Component = Component> = () => RemoteModuleFactoryResult<T>;
+
+type RemoteContainer = {
+  get: <T extends Component = Component>(
+    exposedModule: string,
+  ) => Promise<RemoteModuleFactory<T>> | RemoteModuleFactory<T>;
+  init?: (shareScope: RemoteShareScope) => Promise<void> | void;
+};
+
+type RemoteShareScope = Record<
+  string,
+  Record<
+    string,
+    {
+      get: () => () => Promise<unknown>;
+      loaded?: boolean;
+      from?: string;
+      scope?: string;
+    }
+  >
+>;
+
+export type UseRemoteModuleOptions = {
   entryUrl: string;
-  loader: RemoteModuleLoader<T>;
+  exposedModule: string;
   timeoutMs?: number;
   errorMessage?: string;
 };
 
-function getRemoteEntryCache() {
-  if (!window.__opshubRemoteEntryLoaders__) {
-    window.__opshubRemoteEntryLoaders__ = {};
+const remoteContainerCache: Record<string, Promise<RemoteContainer>> = {};
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  if (timeoutMs <= 0) {
+    return promise;
   }
 
-  return window.__opshubRemoteEntryLoaders__;
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
 }
 
-function getRemoteEntryScript(absoluteUrl: string) {
-  return Array.from(document.scripts).find(
-    (script) => script.dataset.remoteEntry === absoluteUrl || script.src === absoluteUrl,
-  ) as HTMLScriptElement | undefined;
+function isRemoteContainer(value: unknown): value is RemoteContainer {
+  return (
+    typeof value === 'object' && value !== null && 'get' in value && typeof value.get === 'function'
+  );
 }
 
-export async function loadRemoteEntryOnce(url: string, timeoutMs = 15_000) {
+function normalizeRemoteModule<T extends Component = Component>(
+  value: RemoteModuleFactoryResult<T>,
+): RemoteModule<T> {
+  if (typeof value === 'object' && value !== null && 'default' in value) {
+    return value as RemoteModule<T>;
+  }
+
+  return {
+    default: value as T,
+  };
+}
+
+function createDefaultShareScope(): RemoteShareScope {
+  return {
+    vue: {
+      [vueVersion]: {
+        get: () => () => import('vue'),
+        loaded: true,
+        from: 'host-nuxt',
+        scope: 'default',
+      },
+    },
+  };
+}
+
+export async function loadRemoteContainerOnce(url: string, timeoutMs = 15000) {
   const absoluteUrl = new URL(url, window.location.href).href;
-  const cache = getRemoteEntryCache();
 
-  if (cache[absoluteUrl]) {
-    return cache[absoluteUrl];
+  if (remoteContainerCache[absoluteUrl]) {
+    return remoteContainerCache[absoluteUrl];
   }
 
-  cache[absoluteUrl] = new Promise<void>((resolve, reject) => {
-    let isSettled = false;
-    let timeoutId: number | undefined;
-
-    const done = () => {
-      if (isSettled) {
-        return;
+  remoteContainerCache[absoluteUrl] = withTimeout(
+    import(/* @vite-ignore */ absoluteUrl).then(async (remoteContainer) => {
+      if (!isRemoteContainer(remoteContainer)) {
+        throw new Error(`Remote entry did not expose a valid container: ${absoluteUrl}`);
       }
 
-      isSettled = true;
+      await remoteContainer.init?.(createDefaultShareScope());
 
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-
-      resolve();
-    };
-
-    const fail = (message?: string) => {
-      if (isSettled) {
-        return;
-      }
-
-      isSettled = true;
-
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-
-      reject(new Error(message ?? `Failed to load ${absoluteUrl}`));
-    };
-
-    const existing = getRemoteEntryScript(absoluteUrl);
-
-    if (existing) {
-      if (existing.dataset.loaded === 'true') {
-        done();
-        return;
-      }
-
-      existing.addEventListener('load', done, { once: true });
-      existing.addEventListener('error', () => fail(), { once: true });
-    } else {
-      const script = document.createElement('script');
-      script.src = absoluteUrl;
-      script.type = 'text/javascript';
-      script.async = true;
-      script.dataset.remoteEntry = absoluteUrl;
-
-      script.addEventListener(
-        'load',
-        () => {
-          script.dataset.loaded = 'true';
-          done();
-        },
-        { once: true },
-      );
-
-      script.addEventListener('error', () => fail(), { once: true });
-      document.head.appendChild(script);
-    }
-
-    if (timeoutMs > 0) {
-      timeoutId = window.setTimeout(() => {
-        fail(`Loading timeout: ${absoluteUrl}`);
-      }, timeoutMs);
-    }
-  }).catch((error) => {
-    delete cache[absoluteUrl];
+      return remoteContainer;
+    }),
+    timeoutMs,
+    `Loading timeout: ${absoluteUrl}`,
+  ).catch((error) => {
+    delete remoteContainerCache[absoluteUrl];
     throw error;
   });
 
-  return cache[absoluteUrl];
+  return remoteContainerCache[absoluteUrl];
 }
 
-export function useRemoteModule<T extends Component = Component>(
-  options: UseRemoteModuleOptions<T>,
-) {
+export function useRemoteModule<T extends Component = Component>(options: UseRemoteModuleOptions) {
   const component = shallowRef<T | null>(null);
   const error = ref<string | null>(null);
   const loading = ref(false);
@@ -134,8 +134,11 @@ export function useRemoteModule<T extends Component = Component>(
     error.value = null;
 
     try {
-      await loadRemoteEntryOnce(options.entryUrl, options.timeoutMs);
-      const remoteModule = await options.loader();
+      const remoteContainer = await loadRemoteContainerOnce(options.entryUrl, options.timeoutMs);
+      const remoteFactory = (await remoteContainer.get(
+        options.exposedModule,
+      )) as RemoteModuleFactory<T>;
+      const remoteModule = normalizeRemoteModule<T>(await remoteFactory());
 
       if (requestId !== activeRequestId) {
         return;

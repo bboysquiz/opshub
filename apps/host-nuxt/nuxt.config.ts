@@ -44,16 +44,22 @@ export default defineNuxtConfig({
     },
     devOptions: {
       enabled: true,
+      suppressWarnings: true,
+      navigateFallbackAllowlist: [/^\/$/, /^\/(tickets|kb|analytics|profile|about)(\/.*)?$/],
     },
   },
   vite: {
-    optimizeDeps: {
-      exclude: [
-        'tickets_remote/TicketsApp',
-        'kb_remote/KbApp',
-        'analytics_remote/AnalyticsApp',
-        'profile_remote/ProfileApp',
-      ],
+    css: {
+      preprocessorOptions: {
+        sass: {
+          quietDeps: true,
+          silenceDeprecations: ['import'],
+        },
+        scss: {
+          quietDeps: true,
+          silenceDeprecations: ['import'],
+        },
+      },
     },
   },
   compatibilityDate: '2025-07-15',

@@ -26,7 +26,7 @@ const {
   loading,
 } = useRemoteModule({
   entryUrl: 'http://localhost:3010/assets/remoteEntry.js',
-  loader: () => import('tickets_remote/TicketsApp'),
+  exposedModule: './TicketsApp',
   errorMessage: 'Failed to load tickets remote',
 });
 </script>
