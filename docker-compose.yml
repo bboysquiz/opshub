@@ -16,6 +16,7 @@ services:
       dockerfile: server/Dockerfile
     environment:
       PORT: 3001
+      DATABASE_URL: postgres://opshub:opshub@db:5432/opshub
     depends_on:
       - db
 

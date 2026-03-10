@@ -73,6 +73,9 @@ export default defineNuxtConfig({
     },
   },
   vite: {
+    optimizeDeps: {
+      exclude: ['tickets_remote/TicketsApp', 'kb_remote/KbApp'],
+    },
     css: {
       preprocessorOptions: {
         sass: {

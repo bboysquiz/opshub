@@ -4,12 +4,13 @@
   "description": "",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "ports:free": "kill-port 3000 3001 3010",
+    "ports:free": "kill-port 3000 3001 3010 3020",
     "docker:up:db": "docker compose up -d db",
+    "docker:wait:db": "sh -c 'until docker compose exec -T db pg_isready -U opshub -d opshub; do sleep 1; done'",
     "docker:up:full": "docker compose up -d",
     "docker:down": "docker compose down",
-    "dev:core": "pnpm run ports:free && pnpm -r --parallel --filter server --filter host-nuxt --filter tickets-remote dev",
-    "dev:start": "pnpm docker:up:db && pnpm dev:core",
+    "dev:core": "pnpm run ports:free && pnpm -r --parallel --filter server --filter host-nuxt --filter tickets-remote --filter kb-remote dev",
+    "dev:start": "pnpm docker:up:db && pnpm docker:wait:db && pnpm --filter server migrate && pnpm dev:core",
     "lint": "eslint .",
     "format": "prettier -w .",
     "prepare": "husky"
