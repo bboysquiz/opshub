@@ -31,6 +31,12 @@ type UserMeRow = {
   feature_flags: unknown;
 };
 
+type AssignableUserRow = {
+  id: string;
+  email: string;
+  role: Role;
+};
+
 type RefreshSessionDbRow = {
   id: string;
   user_id: string;
@@ -155,6 +161,22 @@ export async function listUsersForAdmin(db: Queryable = pool): Promise<UserMe[]>
     role: row.role,
     createdAt: row.created_at,
     featureFlags: normalizeFeatureFlags(row.feature_flags),
+  }));
+}
+
+export async function listUsersForAssignment(
+  db: Queryable = pool,
+): Promise<Array<{ id: string; email: string; role: Role }>> {
+  const result = await db.query<AssignableUserRow>(
+    `select id, email, role
+     from users
+     order by created_at asc`,
+  );
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    email: row.email,
+    role: row.role,
   }));
 }
 

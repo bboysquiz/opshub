@@ -25,6 +25,17 @@ export async function listTickets(db: Queryable = pool): Promise<TicketRow[]> {
   return result.rows;
 }
 
+export async function getTicketById(id: string, db: Queryable = pool): Promise<TicketRow | null> {
+  const result = await db.query<TicketRow>(
+    `select ${TICKET_COLUMNS}
+     from tickets
+     where id = $1`,
+    [id],
+  );
+
+  return result.rowCount ? result.rows[0] : null;
+}
+
 export async function createTicket(
   args: CreateTicketInput & { createdBy: string },
   db: Queryable = pool,

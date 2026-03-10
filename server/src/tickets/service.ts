@@ -1,4 +1,11 @@
-import { createTicket, deleteTicketById, listTickets, updateTicketById } from './repository';
+import { notifyTicketAssigned } from '../push/service';
+import {
+  createTicket,
+  deleteTicketById,
+  getTicketById,
+  listTickets,
+  updateTicketById,
+} from './repository';
 import { TicketsError } from './errors';
 import type { CreateTicketInput, TicketDto, TicketRow, UpdateTicketInput } from './types';
 
@@ -31,6 +38,14 @@ export async function createTicketRecord(
 ): Promise<TicketDto> {
   try {
     const row = await createTicket({ ...payload, createdBy });
+    if (row.assigned_to) {
+      void notifyTicketAssigned({
+        userId: row.assigned_to,
+        title: row.title,
+        ticketId: row.id,
+      });
+    }
+
     return mapTicket(row);
   } catch (err) {
     if (isFkViolation(err)) {
@@ -42,10 +57,24 @@ export async function createTicketRecord(
 
 export async function updateTicketRecord(id: string, patch: UpdateTicketInput): Promise<TicketDto> {
   try {
+    const previous = await getTicketById(id);
+    if (!previous) {
+      throw new TicketsError(404, 'Ticket not found');
+    }
+
     const row = await updateTicketById(id, patch);
     if (!row) {
       throw new TicketsError(404, 'Ticket not found');
     }
+
+    if (row.assigned_to && row.assigned_to !== previous.assigned_to) {
+      void notifyTicketAssigned({
+        userId: row.assigned_to,
+        title: row.title,
+        ticketId: row.id,
+      });
+    }
+
     return mapTicket(row);
   } catch (err) {
     if (isFkViolation(err)) {

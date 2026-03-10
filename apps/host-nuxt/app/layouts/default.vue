@@ -71,15 +71,22 @@
             <q-item-section>Аналитика</q-item-section>
           </q-item>
 
+          <q-item v-if="auth.isAuthenticated" v-ripple clickable to="/notifications">
+            <q-item-section avatar>
+              <q-icon name="notifications_active" />
+            </q-item-section>
+            <q-item-section>Уведомления</q-item-section>
+          </q-item>
+
           <q-separator spaced />
 
           <q-item v-ripple clickable to="/profile">
             <q-item-section avatar>
               <q-icon name="account_circle" />
             </q-item-section>
-            <q-item-section>{{
-              auth.isAuthenticated ? 'Профиль и настройки' : 'Вход и профиль'
-            }}</q-item-section>
+            <q-item-section>
+              {{ auth.isAuthenticated ? 'Профиль и настройки' : 'Вход и профиль' }}
+            </q-item-section>
           </q-item>
 
           <q-separator spaced />

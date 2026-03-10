@@ -18,6 +18,7 @@ export type CreateTicketInput = {
   title: string;
   description: string;
   priority: TicketPriority;
+  assignedTo?: string | null;
 };
 
 export type UpdateTicketInput = {
@@ -25,6 +26,7 @@ export type UpdateTicketInput = {
   description?: string;
   status?: TicketStatus;
   priority?: TicketPriority;
+  assignedTo?: string | null;
 };
 
 export type LocalTicket = TicketDto & {

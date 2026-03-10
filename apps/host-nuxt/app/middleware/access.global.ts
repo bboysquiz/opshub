@@ -16,6 +16,10 @@ const accessRules: AccessRule[] = [
     requiresAuth: true,
     permission: 'viewAnalytics',
   },
+  {
+    test: (path) => path.startsWith('/notifications'),
+    requiresAuth: true,
+  },
 ];
 
 export default defineNuxtRouteMiddleware(async (to) => {

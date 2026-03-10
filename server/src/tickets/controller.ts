@@ -31,6 +31,10 @@ export async function createTicketHandler(req: Request, res: Response): Promise<
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
+  if (req.user.role === 'employee' && parsed.data.assignedTo) {
+    return res.status(403).json({ message: 'Forbidden' });
+  }
+
   try {
     const ticket = await createTicketRecord(req.user.sub, parsed.data);
     return res.status(201).json(ticket);

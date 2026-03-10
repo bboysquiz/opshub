@@ -16,6 +16,7 @@ import {
 } from 'quasar';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useAuthStore } from '../../../stores/auth';
+import { usersApi, type AssignableUser } from '../api/usersApi';
 import { useSyncStore } from '../stores/sync';
 import { useTicketsStore } from '../stores/tickets';
 import type { LocalTicket, TicketPriority, TicketStatus } from '../domain/models';
@@ -66,6 +67,7 @@ const accessTokenInput = computed({
 const showDiagnostics = ref(false);
 const dialogOpen = ref(false);
 const editingTicket = ref<LocalTicket | null>(null);
+const assignableUsers = ref<Array<{ label: string; value: string }>>([]);
 
 const priorityLabels: Record<TicketPriority, string> = {
   low: 'Низкий',
@@ -92,6 +94,7 @@ const form = reactive({
   description: '',
   priority: 'medium' as TicketPriority,
   status: 'open' as TicketStatus,
+  assignedTo: null as string | null,
 });
 
 const columns = computed<
@@ -185,6 +188,7 @@ function resetForm() {
   form.description = '';
   form.priority = 'medium';
   form.status = 'open';
+  form.assignedTo = null;
 }
 
 function openCreate() {
@@ -203,7 +207,25 @@ function openEdit(ticket: LocalTicket) {
   form.description = ticket.description;
   form.priority = ticket.priority;
   form.status = ticket.status;
+  form.assignedTo = ticket.assignedTo;
   dialogOpen.value = true;
+}
+
+async function loadAssignableUsers() {
+  if (!props.canUpdateTickets) {
+    assignableUsers.value = [];
+    return;
+  }
+
+  try {
+    const users = await usersApi.listAssignable();
+    assignableUsers.value = users.map((user: AssignableUser) => ({
+      label: `${user.email} (${user.role})`,
+      value: user.id,
+    }));
+  } catch {
+    assignableUsers.value = [];
+  }
 }
 
 async function submit() {
@@ -217,6 +239,7 @@ async function submit() {
         title: form.title,
         description: form.description,
         priority: form.priority,
+        assignedTo: form.assignedTo,
         ...(editingTicket.value.isLocalOnly ? {} : { status: form.status }),
       });
 
@@ -226,6 +249,7 @@ async function submit() {
         title: form.title,
         description: form.description,
         priority: form.priority,
+        assignedTo: form.assignedTo,
       });
 
       notifySavedLocally('created');
@@ -281,6 +305,7 @@ onMounted(async () => {
   await authStore.bootstrapAuth();
   await syncStore.init();
   await ticketsStore.init();
+  await loadAssignableUsers();
   await ticketsStore.loadTickets();
 });
 </script>
@@ -484,6 +509,17 @@ onMounted(async () => {
               :options="priorityOptions"
               emit-value
               map-options
+            />
+
+            <q-select
+              v-if="props.canUpdateTickets"
+              v-model="form.assignedTo"
+              outlined
+              clearable
+              emit-value
+              map-options
+              label="Исполнитель"
+              :options="assignableUsers"
             />
 
             <q-select

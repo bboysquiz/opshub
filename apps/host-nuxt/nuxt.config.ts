@@ -20,30 +20,11 @@ export default defineNuxtConfig({
     },
   },
   pwa: {
-    workbox: {
-      inlineWorkboxRuntime: true,
-      runtimeCaching: [
-        {
-          urlPattern: /^http:\/\/localhost:3010\/assets\/.*$/,
-          handler: 'StaleWhileRevalidate',
-          options: {
-            cacheName: 'tickets-remote-assets',
-            cacheableResponse: { statuses: [0, 200] },
-            expiration: { maxEntries: 40, maxAgeSeconds: 7 * 24 * 60 * 60 },
-          },
-        },
-        {
-          urlPattern: /^http:\/\/localhost:3001\/tickets(?:\/.*)?$/,
-          method: 'GET',
-          handler: 'NetworkFirst',
-          options: {
-            cacheName: 'tickets-api',
-            networkTimeoutSeconds: 3,
-            cacheableResponse: { statuses: [0, 200] },
-            expiration: { maxEntries: 20, maxAgeSeconds: 24 * 60 * 60 },
-          },
-        },
-      ],
+    strategies: 'injectManifest',
+    srcDir: 'app',
+    filename: 'sw.ts',
+    injectManifest: {
+      globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2}'],
     },
     registerType: 'autoUpdate',
     manifest: {
@@ -70,7 +51,10 @@ export default defineNuxtConfig({
     devOptions: {
       enabled: true,
       suppressWarnings: true,
-      navigateFallbackAllowlist: [/^\/$/, /^\/(tickets|kb|analytics|profile|about)(\/.*)?$/],
+      navigateFallbackAllowlist: [
+        /^\/$/,
+        /^\/(tickets|kb|analytics|notifications|profile|about)(\/.*)?$/,
+      ],
     },
   },
   vite: {
@@ -91,5 +75,5 @@ export default defineNuxtConfig({
     },
   },
   compatibilityDate: '2025-07-15',
-  devtools: { enabled: true },
+  devtools: { enabled: false },
 });

@@ -44,5 +44,6 @@ export function mergeCreatePayload(
     title: patch.title ?? current.title,
     description: patch.description ?? current.description,
     priority: patch.priority ?? current.priority,
+    assignedTo: patch.assignedTo ?? current.assignedTo ?? null,
   };
 }
