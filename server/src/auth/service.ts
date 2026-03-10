@@ -2,13 +2,17 @@ import bcrypt from 'bcrypt';
 import { pool } from '../db';
 import { AuthError, isAuthError, isPgUniqueViolation } from './errors';
 import {
+  countUsers,
+  countUsersByRole,
   createRefreshSession,
   createUser,
   findRefreshSessionForUpdate,
   findUserByEmailWithPassword,
   findUserById,
   findUserMeById,
+  listUsersForAdmin,
   revokeRefreshSessionById,
+  updateUserAccess,
 } from './repository';
 import {
   encodeRefreshToken,
@@ -24,7 +28,6 @@ const BCRYPT_ROUNDS = 12;
 type RegisterInput = {
   email: string;
   password: string;
-  role?: Role;
 };
 
 type LoginInput = {
@@ -48,7 +51,7 @@ function isExpired(expiresAt: Date | string): boolean {
 export async function register(input: RegisterInput, meta: SessionMeta): Promise<RegisterResponse> {
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
   const email = input.email.toLowerCase();
-  const role = input.role ?? 'agent';
+  const role: Role = (await countUsers()) === 0 ? 'admin' : 'employee';
 
   let user: SafeUser;
   try {
@@ -174,4 +177,40 @@ export async function me(userId: string): Promise<UserMe> {
   const user = await findUserMeById(userId);
   if (!user) throw new AuthError(404, 'User not found');
   return user;
+}
+
+export async function listAdminUsers(): Promise<UserMe[]> {
+  return listUsersForAdmin();
+}
+
+export async function updateAdminUserAccess(
+  userId: string,
+  patch: {
+    role?: Role;
+    featureFlags?: UserMe['featureFlags'];
+  },
+): Promise<UserMe> {
+  const current = await findUserMeById(userId);
+  if (!current) {
+    throw new AuthError(404, 'User not found');
+  }
+
+  if (patch.role && current.role === 'admin' && patch.role !== 'admin') {
+    const adminCount = await countUsersByRole('admin');
+    if (adminCount <= 1) {
+      throw new AuthError(400, 'Cannot remove the last admin');
+    }
+  }
+
+  const updated = await updateUserAccess({
+    userId,
+    role: patch.role,
+    featureFlags: patch.featureFlags,
+  });
+
+  if (!updated) {
+    throw new AuthError(404, 'User not found');
+  }
+
+  return updated;
 }

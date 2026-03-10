@@ -23,6 +23,20 @@ import SyncDiagnostics from './SyncDiagnostics.vue';
 import TicketsErrorState from './TicketsErrorState.vue';
 import { useTicketsNotify } from './useTicketsNotify';
 
+type TicketsPageProps = {
+  userRole?: 'admin' | 'agent' | 'employee' | null;
+  canUpdateTickets?: boolean;
+  canDeleteTickets?: boolean;
+  useNewTicketsTable?: boolean;
+};
+
+const props = withDefaults(defineProps<TicketsPageProps>(), {
+  userRole: null,
+  canUpdateTickets: true,
+  canDeleteTickets: true,
+  useNewTicketsTable: false,
+});
+
 const {
   notifyConflictDetected,
   notifyRemovedLocally,
@@ -80,14 +94,30 @@ const form = reactive({
   status: 'open' as TicketStatus,
 });
 
-const columns = [
-  { name: 'title', label: 'Заголовок', field: 'title', align: 'left' as const },
-  { name: 'priority', label: 'Приоритет', field: 'priority', align: 'left' as const },
-  { name: 'status', label: 'Статус', field: 'status', align: 'left' as const },
-  { name: 'sync', label: 'Синхронизация', field: 'syncStatus', align: 'left' as const },
-  { name: 'updatedAt', label: 'Обновлён', field: 'updatedAt', align: 'left' as const },
-  { name: 'actions', label: 'Действия', field: 'actions', align: 'right' as const },
-];
+const columns = computed<
+  Array<{ name: string; label: string; field: string; align: 'left' | 'right' }>
+>(() => {
+  const base: Array<{ name: string; label: string; field: string; align: 'left' | 'right' }> = [
+    { name: 'title', label: 'Заголовок', field: 'title', align: 'left' as const },
+    { name: 'priority', label: 'Приоритет', field: 'priority', align: 'left' as const },
+    { name: 'status', label: 'Статус', field: 'status', align: 'left' as const },
+    { name: 'sync', label: 'Синхронизация', field: 'syncStatus', align: 'left' as const },
+    { name: 'updatedAt', label: 'Обновлён', field: 'updatedAt', align: 'left' as const },
+  ];
+
+  if (props.useNewTicketsTable) {
+    base.splice(4, 0, {
+      name: 'createdAt',
+      label: 'Создан',
+      field: 'createdAt',
+      align: 'left' as const,
+    });
+  }
+
+  base.push({ name: 'actions', label: 'Действия', field: 'actions', align: 'right' as const });
+
+  return base;
+});
 
 const priorityOptions: Array<{ label: string; value: TicketPriority }> = [
   { label: 'Низкий', value: 'low' },
@@ -102,6 +132,15 @@ const statusOptions: Array<{ label: string; value: TicketStatus }> = [
 ];
 
 const rows = computed(() => visibleTickets.value);
+const employeeReadOnly = computed(() => props.userRole === 'employee');
+
+function canEditTicket(ticket: LocalTicket) {
+  return props.canUpdateTickets || ticket.isLocalOnly;
+}
+
+function canDeleteTicket(ticket: LocalTicket) {
+  return props.canDeleteTickets || ticket.isLocalOnly;
+}
 
 function statusColor(status: TicketStatus) {
   if (status === 'resolved') return 'positive';
@@ -155,6 +194,10 @@ function openCreate() {
 }
 
 function openEdit(ticket: LocalTicket) {
+  if (!canEditTicket(ticket)) {
+    return;
+  }
+
   editingTicket.value = ticket;
   form.title = ticket.title;
   form.description = ticket.description;
@@ -166,6 +209,10 @@ function openEdit(ticket: LocalTicket) {
 async function submit() {
   try {
     if (editingTicket.value) {
+      if (!canEditTicket(editingTicket.value)) {
+        throw new Error('У текущей роли нет прав на изменение серверных тикетов');
+      }
+
       await ticketsStore.updateTicket(editingTicket.value.id, {
         title: form.title,
         description: form.description,
@@ -191,6 +238,10 @@ async function submit() {
 }
 
 function confirmDelete(ticket: LocalTicket) {
+  if (!canDeleteTicket(ticket)) {
+    return;
+  }
+
   Dialog.create({
     title: 'Удалить тикет',
     message: `Удалить «${ticket.title}»?`,
@@ -247,6 +298,14 @@ onMounted(async () => {
 
       <q-badge v-if="conflictCount" color="negative" class="q-px-sm q-py-xs">
         конфликты {{ conflictCount }}
+      </q-badge>
+
+      <q-badge v-if="props.useNewTicketsTable" color="secondary" class="q-px-sm q-py-xs">
+        новая таблица
+      </q-badge>
+
+      <q-badge v-if="employeeReadOnly" color="grey-7" class="q-px-sm q-py-xs">
+        режим сотрудника: без изменения серверных тикетов
       </q-badge>
 
       <q-space />
@@ -321,54 +380,89 @@ onMounted(async () => {
     <q-table
       flat
       bordered
+      :dense="props.useNewTicketsTable"
       row-key="id"
       :rows="rows"
       :columns="columns"
       :loading="loading"
+      :virtual-scroll="props.useNewTicketsTable"
+      :rows-per-page-options="props.useNewTicketsTable ? [0] : [10, 20, 50]"
+      :pagination="props.useNewTicketsTable ? { rowsPerPage: 0 } : undefined"
+      :table-style="props.useNewTicketsTable ? 'max-height: 520px' : undefined"
       no-data-label="Тикетов пока нет"
     >
-      <template #body-cell-priority="props">
-        <q-td :props="props">
+      <template #body-cell-priority="slotProps">
+        <q-td :props="slotProps">
           <q-badge color="grey-8">
-            {{ priorityLabel(props.row.priority) }}
+            {{ priorityLabel(slotProps.row.priority) }}
           </q-badge>
         </q-td>
       </template>
 
-      <template #body-cell-status="props">
-        <q-td :props="props">
-          <q-badge :color="statusColor(props.row.status)">
-            {{ statusLabel(props.row.status) }}
+      <template #body-cell-status="slotProps">
+        <q-td :props="slotProps">
+          <q-badge :color="statusColor(slotProps.row.status)">
+            {{ statusLabel(slotProps.row.status) }}
           </q-badge>
-          <q-badge v-if="props.row.isLocalOnly" color="warning" class="q-ml-xs"> офлайн </q-badge>
-          <q-badge v-if="props.row.conflict" color="negative" class="q-ml-xs"> конфликт </q-badge>
+          <q-badge v-if="slotProps.row.isLocalOnly" color="warning" class="q-ml-xs">
+            офлайн
+          </q-badge>
+          <q-badge v-if="slotProps.row.conflict" color="negative" class="q-ml-xs">
+            конфликт
+          </q-badge>
         </q-td>
       </template>
 
-      <template #body-cell-sync="props">
-        <q-td :props="props">
-          <q-badge :color="syncColor(props.row.syncStatus)">
-            {{ syncLabel(props.row.syncStatus) }}
+      <template #body-cell-sync="slotProps">
+        <q-td :props="slotProps">
+          <q-badge :color="syncColor(slotProps.row.syncStatus)">
+            {{ syncLabel(slotProps.row.syncStatus) }}
           </q-badge>
-          <div v-if="props.row.lastError" class="text-caption text-negative q-mt-xs">
-            {{ props.row.lastError }}
+          <div v-if="slotProps.row.lastError" class="text-caption text-negative q-mt-xs">
+            {{ slotProps.row.lastError }}
           </div>
         </q-td>
       </template>
 
-      <template #body-cell-updatedAt="props">
-        <q-td :props="props">
-          <div>{{ formatDateTime(props.row.updatedAt) }}</div>
-          <div v-if="props.row.isLocalOnly" class="text-caption text-grey-7">
+      <template #body-cell-updatedAt="slotProps">
+        <q-td :props="slotProps">
+          <div>{{ formatDateTime(slotProps.row.updatedAt) }}</div>
+          <div v-if="slotProps.row.isLocalOnly" class="text-caption text-grey-7">
             локальный черновик
           </div>
         </q-td>
       </template>
 
-      <template #body-cell-actions="props">
-        <q-td :props="props" class="text-right">
-          <q-btn flat dense color="primary" label="Изменить" @click="openEdit(props.row)" />
-          <q-btn flat dense color="negative" label="Удалить" @click="confirmDelete(props.row)" />
+      <template v-if="props.useNewTicketsTable" #body-cell-createdAt="slotProps">
+        <q-td :props="slotProps">
+          {{ formatDateTime(slotProps.row.createdAt) }}
+        </q-td>
+      </template>
+
+      <template #body-cell-actions="slotProps">
+        <q-td :props="slotProps" class="text-right">
+          <q-btn
+            v-if="canEditTicket(slotProps.row)"
+            flat
+            dense
+            color="primary"
+            label="Изменить"
+            @click="openEdit(slotProps.row)"
+          />
+          <q-btn
+            v-if="canDeleteTicket(slotProps.row)"
+            flat
+            dense
+            color="negative"
+            label="Удалить"
+            @click="confirmDelete(slotProps.row)"
+          />
+          <span
+            v-if="!canEditTicket(slotProps.row) && !canDeleteTicket(slotProps.row)"
+            class="text-caption text-grey-7"
+          >
+            только просмотр
+          </span>
         </q-td>
       </template>
     </q-table>

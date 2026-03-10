@@ -16,7 +16,7 @@ function requireEnv(name: string): string {
 
 const JWT_ACCESS_SECRET = requireEnv('JWT_ACCESS_SECRET');
 
-export function signAccessToken(user: SafeUser): string {
+export function signAccessToken(user: Pick<SafeUser, 'id' | 'email' | 'role'>): string {
   return jwt.sign({ sub: user.id, email: user.email, role: user.role }, JWT_ACCESS_SECRET, {
     expiresIn: ACCESS_TTL_SECONDS,
   });

@@ -1,7 +1,12 @@
 import { Router } from 'express';
-import { requireAccess } from '../auth/middleware';
+import { requireAccess, requireRoles } from '../auth/middleware';
 import { listAnalyticsTicketsHandler } from './controller';
 
 export const analyticsRouter = Router();
 
-analyticsRouter.get('/analytics/tickets', requireAccess, listAnalyticsTicketsHandler);
+analyticsRouter.get(
+  '/analytics/tickets',
+  requireAccess,
+  requireRoles('admin', 'agent'),
+  listAnalyticsTicketsHandler,
+);

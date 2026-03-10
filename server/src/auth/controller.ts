@@ -5,6 +5,24 @@ import { login, logout, me, refresh, register } from './service';
 import { refreshClearCookieOptions, refreshCookieOptions } from './tokens';
 import { headerToString } from './utils';
 
+function formatValidationMessage(issues: Array<{ path: PropertyKey[]; code: string }>): string {
+  const [issue] = issues;
+  if (!issue) {
+    return 'Некорректные данные запроса';
+  }
+
+  const field = String(issue.path[0] ?? '');
+  if (field === 'email') {
+    return 'Введите корректный email';
+  }
+
+  if (field === 'password' && issue.code === 'too_small') {
+    return 'Пароль должен содержать минимум 8 символов';
+  }
+
+  return 'Некорректные данные запроса';
+}
+
 function handleAuthError(err: unknown, res: Response): Response {
   if (isAuthError(err)) {
     return res.status(err.status).json({ message: err.message });
@@ -23,7 +41,9 @@ function getSessionMeta(req: Request): { userAgent: string | null; ip: string | 
 
 export async function registerHandler(req: Request, res: Response): Promise<Response> {
   const parsed = registerSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
+  if (!parsed.success) {
+    return res.status(400).json({ message: formatValidationMessage(parsed.error.issues) });
+  }
 
   try {
     const result = await register(parsed.data, getSessionMeta(req));
@@ -36,7 +56,9 @@ export async function registerHandler(req: Request, res: Response): Promise<Resp
 
 export async function loginHandler(req: Request, res: Response): Promise<Response> {
   const parsed = loginSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ message: 'Invalid body' });
+  if (!parsed.success) {
+    return res.status(400).json({ message: formatValidationMessage(parsed.error.issues) });
+  }
 
   try {
     const result = await login(parsed.data, getSessionMeta(req));

@@ -1,11 +1,15 @@
 import type { Request } from 'express';
 
 export type Role = 'admin' | 'agent' | 'employee';
+export type FeatureFlags = {
+  newTicketsTable: boolean;
+};
 
 export type SafeUser = {
   id: string;
   email: string;
   role: Role;
+  featureFlags: FeatureFlags;
 };
 
 export type UserWithPassword = SafeUser & {
@@ -34,8 +38,9 @@ export type RefreshSessionRow = {
 export type UserMe = {
   id: string;
   email: string;
-  role: string;
-  created_at: Date | string;
+  role: Role;
+  createdAt: Date | string;
+  featureFlags: FeatureFlags;
 };
 
 export type SessionMeta = {
