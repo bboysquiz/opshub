@@ -21,6 +21,7 @@ export default defineNuxtConfig({
   },
   pwa: {
     workbox: {
+      inlineWorkboxRuntime: true,
       runtimeCaching: [
         {
           urlPattern: /^http:\/\/localhost:3010\/assets\/.*$/,
@@ -74,7 +75,7 @@ export default defineNuxtConfig({
   },
   vite: {
     optimizeDeps: {
-      exclude: ['tickets_remote/TicketsApp', 'kb_remote/KbApp'],
+      exclude: ['tickets_remote/TicketsApp', 'kb_remote/KbApp', 'analytics_remote/AnalyticsApp'],
     },
     css: {
       preprocessorOptions: {

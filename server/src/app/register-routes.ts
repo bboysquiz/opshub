@@ -1,3 +1,4 @@
+import { analyticsRouter } from '../analytics/routes';
 import type { Express } from 'express';
 import { authRouter } from '../auth/routes';
 import { kbRouter } from '../kb/routes';
@@ -9,6 +10,7 @@ export function registerRoutes(app: Express): void {
   app.use(authRouter);
   app.use(healthRouter);
   app.use(csrfRouter);
+  app.use(analyticsRouter);
   app.use(kbRouter);
   app.use(ticketsRouter);
 }
