@@ -20,6 +20,30 @@ export default defineNuxtConfig({
     },
   },
   pwa: {
+    workbox: {
+      runtimeCaching: [
+        {
+          urlPattern: /^http:\/\/localhost:3010\/assets\/.*$/,
+          handler: 'StaleWhileRevalidate',
+          options: {
+            cacheName: 'tickets-remote-assets',
+            cacheableResponse: { statuses: [0, 200] },
+            expiration: { maxEntries: 40, maxAgeSeconds: 7 * 24 * 60 * 60 },
+          },
+        },
+        {
+          urlPattern: /^http:\/\/localhost:3001\/tickets(?:\/.*)?$/,
+          method: 'GET',
+          handler: 'NetworkFirst',
+          options: {
+            cacheName: 'tickets-api',
+            networkTimeoutSeconds: 3,
+            cacheableResponse: { statuses: [0, 200] },
+            expiration: { maxEntries: 20, maxAgeSeconds: 24 * 60 * 60 },
+          },
+        },
+      ],
+    },
     registerType: 'autoUpdate',
     manifest: {
       name: 'OpsHub',

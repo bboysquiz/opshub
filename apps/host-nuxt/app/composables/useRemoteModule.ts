@@ -37,6 +37,12 @@ export type UseRemoteModuleOptions = {
 
 const remoteContainerCache: Record<string, Promise<RemoteContainer>> = {};
 
+const sharedVersions = {
+  vue: vueVersion,
+  pinia: '3.0.4',
+  quasar: '2.18.6',
+} as const;
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
   if (timeoutMs <= 0) {
     return promise;
@@ -81,8 +87,24 @@ function normalizeRemoteModule<T extends Component = Component>(
 function createDefaultShareScope(): RemoteShareScope {
   return {
     vue: {
-      [vueVersion]: {
+      [sharedVersions.vue]: {
         get: () => () => import('vue'),
+        loaded: true,
+        from: 'host-nuxt',
+        scope: 'default',
+      },
+    },
+    pinia: {
+      [sharedVersions.pinia]: {
+        get: () => () => import('pinia'),
+        loaded: true,
+        from: 'host-nuxt',
+        scope: 'default',
+      },
+    },
+    quasar: {
+      [sharedVersions.quasar]: {
+        get: () => () => import('quasar'),
         loaded: true,
         from: 'host-nuxt',
         scope: 'default',

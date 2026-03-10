@@ -1,4 +1,8 @@
 import { createApp } from 'vue';
 import App from './App.vue';
+import { installTicketsRemote } from './app/bootstrap';
 
-createApp(App).mount('#app');
+const app = createApp(App);
+
+installTicketsRemote(app);
+app.mount('#app');

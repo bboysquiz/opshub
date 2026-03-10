@@ -1,5 +1,8 @@
 import {
+  ClosePopup,
   Dark,
+  Dialog,
+  Notify,
   QBanner,
   QBtn,
   QCard,
@@ -17,6 +20,7 @@ import {
   QSeparator,
   QSpace,
   QSpinner,
+  QTd,
   QToggle,
   QToolbar,
   QToolbarTitle,
@@ -57,14 +61,19 @@ const quasarOptions = {
     QSeparator,
     QSpace,
     QSpinner,
+    QTd,
     QToggle,
     QToolbar,
     QToolbarTitle,
   },
   directives: {
+    ClosePopup,
     Ripple,
   },
-  plugins: {},
+  plugins: {
+    Notify,
+    Dialog,
+  },
 };
 
 export { Dark };

@@ -1,6 +1,7 @@
+<script setup lang="ts">
+import TicketsPage from './features/tickets/ui/TicketsPage.vue';
+</script>
+
 <template>
-  <div style="padding: 16px">
-    <h2>Tickets Remote</h2>
-    <p>Если ты это видишь внутри host — federation работает.</p>
-  </div>
+  <TicketsPage />
 </template>
