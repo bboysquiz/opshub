@@ -9,7 +9,9 @@ export type TicketDto = {
   status: TicketStatus;
   priority: TicketPriority;
   createdBy: string | null;
+  createdByEmail: string | null;
   assignedTo: string | null;
+  assignedToEmail: string | null;
   updatedAt: string;
   createdAt: string;
 };

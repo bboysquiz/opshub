@@ -1,7 +1,5 @@
 <template>
   <div class="q-pa-md">
-    <div class="text-h6 q-mb-md">Аналитика</div>
-
     <q-banner v-if="error" rounded class="bg-red-1 text-red-9 q-mb-md">
       {{ error }}
     </q-banner>
@@ -23,7 +21,7 @@ import { computed } from 'vue';
 import { useRemoteModule } from '../composables/useRemoteModule';
 
 const { component, error } = useRemoteModule<Component>({
-  entryUrl: 'http://localhost:3030/assets/remoteEntry.js',
+  entryUrl: 'http://localhost:3030/remoteEntry.js',
   exposedModule: './AnalyticsApp',
   errorMessage: 'Не удалось загрузить модуль аналитики',
 });

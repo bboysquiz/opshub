@@ -39,3 +39,7 @@ export async function getArticleMeta(slug: string): Promise<ArticleMeta | null> 
 export async function setArticleMeta(meta: ArticleMeta): Promise<void> {
   await kbDb.meta.put(meta);
 }
+
+export async function deleteArticleMeta(slug: string): Promise<void> {
+  await kbDb.meta.delete(slug);
+}

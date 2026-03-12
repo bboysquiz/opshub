@@ -46,6 +46,9 @@ importers:
 
   apps/analytics-remote:
     dependencies:
+      '@opshub/shared-ui':
+        specifier: workspace:*
+        version: link:../../packages/shared-ui
       '@quasar/extras':
         specifier: ^1.17.0
         version: 1.17.0
@@ -95,6 +98,9 @@ importers:
       '@opshub/shared-api':
         specifier: workspace:*
         version: link:../../packages/shared-api
+      '@opshub/shared-ui':
+        specifier: workspace:*
+        version: link:../../packages/shared-ui
       '@pinia/nuxt':
         specifier: ^0.11.3
         version: 0.11.3(magicast@0.5.2)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.29(typescript@5.9.3)))
@@ -144,6 +150,9 @@ importers:
 
   apps/kb-remote:
     dependencies:
+      '@opshub/shared-ui':
+        specifier: workspace:*
+        version: link:../../packages/shared-ui
       '@quasar/extras':
         specifier: ^1.17.0
         version: 1.17.0
@@ -190,6 +199,9 @@ importers:
 
   apps/tickets-remote:
     dependencies:
+      '@opshub/shared-ui':
+        specifier: workspace:*
+        version: link:../../packages/shared-ui
       '@quasar/extras':
         specifier: ^1.17.0
         version: 1.17.0
@@ -244,7 +256,14 @@ importers:
 
   packages/shared-config: {}
 
-  packages/shared-ui: {}
+  packages/shared-ui:
+    dependencies:
+      quasar:
+        specifier: ^2.18.6
+        version: 2.18.6
+      vue:
+        specifier: ^3.5.28
+        version: 3.5.29(typescript@5.9.3)
 
   server:
     dependencies:

@@ -1,3 +1,4 @@
+import type { AccessPayload } from '../auth/types';
 import { notifyTicketAssigned } from '../push/service';
 import {
   createTicket,
@@ -17,7 +18,9 @@ function mapTicket(row: TicketRow): TicketDto {
     status: row.status,
     priority: row.priority,
     createdBy: row.created_by,
+    createdByEmail: row.created_by_email,
     assignedTo: row.assigned_to,
+    assignedToEmail: row.assigned_to_email,
     updatedAt: row.updated_at,
     createdAt: row.created_at,
   };
@@ -55,11 +58,39 @@ export async function createTicketRecord(
   }
 }
 
-export async function updateTicketRecord(id: string, patch: UpdateTicketInput): Promise<TicketDto> {
+function canUpdateTicket(actor: AccessPayload, ticket: TicketRow): boolean {
+  if (actor.role === 'admin' || actor.role === 'agent') {
+    return true;
+  }
+
+  return ticket.created_by === actor.sub;
+}
+
+function canDeleteTicket(actor: AccessPayload, ticket: TicketRow): boolean {
+  if (actor.role === 'admin') {
+    return true;
+  }
+
+  return ticket.created_by === actor.sub;
+}
+
+export async function updateTicketRecord(
+  id: string,
+  patch: UpdateTicketInput,
+  actor: AccessPayload,
+): Promise<TicketDto> {
   try {
     const previous = await getTicketById(id);
     if (!previous) {
       throw new TicketsError(404, 'Ticket not found');
+    }
+
+    if (!canUpdateTicket(actor, previous)) {
+      throw new TicketsError(403, 'Forbidden');
+    }
+
+    if (actor.role === 'employee' && patch.assignedTo !== undefined) {
+      throw new TicketsError(403, 'Forbidden');
     }
 
     const row = await updateTicketById(id, patch);
@@ -84,7 +115,16 @@ export async function updateTicketRecord(id: string, patch: UpdateTicketInput): 
   }
 }
 
-export async function deleteTicketRecord(id: string): Promise<void> {
+export async function deleteTicketRecord(id: string, actor: AccessPayload): Promise<void> {
+  const existing = await getTicketById(id);
+  if (!existing) {
+    throw new TicketsError(404, 'Ticket not found');
+  }
+
+  if (!canDeleteTicket(actor, existing)) {
+    throw new TicketsError(403, 'Forbidden');
+  }
+
   const deleted = await deleteTicketById(id);
   if (!deleted) {
     throw new TicketsError(404, 'Ticket not found');

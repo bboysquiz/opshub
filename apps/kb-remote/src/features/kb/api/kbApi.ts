@@ -1,4 +1,11 @@
-import { getArticleMeta, kbDb, setArticleMeta, type Article } from '../infra/dexie';
+import {
+  deleteArticleMeta,
+  getArticleMeta,
+  kbDb,
+  setArticleMeta,
+  type Article,
+} from '../infra/dexie';
+import { http } from './http';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001';
 const KB_CACHE_NAME = 'kb-articles-v1';
@@ -16,9 +23,22 @@ export type ArticleListResult = {
   source: 'network' | 'idb';
 };
 
+export type ArticleSearchResult = {
+  items: ArticleListItem[];
+  source: 'network';
+};
+
 type ArticleDto = ArticleListItem & {
   content: string;
 };
+
+export type CreateArticleInput = {
+  slug: string;
+  title: string;
+  content: string;
+};
+
+export type UpdateArticleInput = Partial<CreateArticleInput>;
 
 function nowIso() {
   return new Date().toISOString();
@@ -47,6 +67,10 @@ async function findLocalArticleBySlug(slug: string): Promise<Article | undefined
   return kbDb.articles.where('slug').equals(slug).first();
 }
 
+async function findLocalArticleById(id: string): Promise<Article | undefined> {
+  return kbDb.articles.get(id);
+}
+
 async function cachePut(url: string, response: Response) {
   if (!('caches' in globalThis)) {
     return;
@@ -66,7 +90,7 @@ async function cacheMatch(url: string): Promise<Response | null> {
 }
 
 async function persistArticle(dto: ArticleDto, etag: string | null): Promise<Article> {
-  const existing = await findLocalArticleBySlug(dto.slug);
+  const existing = (await findLocalArticleById(dto.id)) ?? (await findLocalArticleBySlug(dto.slug));
   const article: Article = {
     ...normalizeArticleDto(dto),
     savedOffline: existing?.savedOffline ?? false,
@@ -115,6 +139,29 @@ async function getOfflineFallback(slug: string, url: string): Promise<Article> {
 export const kbApi = {
   async list(): Promise<ArticleListResult> {
     const url = `${API_BASE_URL}/kb/articles`;
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      const cachedArticles = await kbDb.articles.toArray();
+
+      return {
+        items: cachedArticles
+          .map((article) =>
+            normalizeArticleListItem({
+              id: article.id,
+              slug: article.slug,
+              title: article.title,
+              updatedAt: article.updatedAt,
+              createdAt: article.createdAt,
+            }),
+          )
+          .sort(
+            (left, right) =>
+              new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+          ),
+        source: 'idb',
+      };
+    }
+
     let res: Response;
 
     try {
@@ -152,10 +199,70 @@ export const kbApi = {
     };
   },
 
+  async search(query: string): Promise<ArticleSearchResult> {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      return {
+        items: [],
+        source: 'network',
+      };
+    }
+
+    const url = `${API_BASE_URL}/kb/articles/search?q=${encodeURIComponent(normalizedQuery)}`;
+    const res = await fetch(url, { credentials: 'include' });
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as { items: ArticleListItem[] };
+    return {
+      items: data.items.map(normalizeArticleListItem),
+      source: 'network',
+    };
+  },
+
+  async create(payload: CreateArticleInput): Promise<Article> {
+    const data = await http<ArticleDto>('/kb/articles', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    return persistArticle(normalizeArticleDto(data), null);
+  },
+
+  async update(id: string, payload: UpdateArticleInput, previousSlug: string): Promise<Article> {
+    const data = await http<ArticleDto>(`/kb/articles/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+
+    const article = await persistArticle(normalizeArticleDto(data), null);
+
+    if (previousSlug !== article.slug) {
+      await deleteArticleMeta(previousSlug);
+    }
+
+    return article;
+  },
+
+  async remove(id: string, slug: string): Promise<void> {
+    await http<void>(`/kb/articles/${id}`, {
+      method: 'DELETE',
+    });
+
+    await kbDb.articles.delete(id);
+    await deleteArticleMeta(slug);
+  },
+
   async get(slug: string): Promise<Article> {
     const url = buildArticleUrl(slug);
     const meta = await getArticleMeta(slug);
     const headers = new Headers();
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return getOfflineFallback(slug, url);
+    }
 
     if (meta?.etag) {
       headers.set('If-None-Match', meta.etag);

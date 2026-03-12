@@ -1,5 +1,7 @@
 <template>
   <ClientOnly>
+    <a href="#app-main" class="op-skip-link">Перейти к содержимому</a>
+
     <q-layout view="hHh LpR fFf">
       <q-header elevated>
         <q-toolbar>
@@ -21,6 +23,9 @@
             </div>
             <q-badge color="secondary">
               {{ roleLabel }}
+            </q-badge>
+            <q-badge :color="online ? 'positive' : 'negative'" role="status" aria-live="polite">
+              {{ online ? 'онлайн' : 'офлайн' }}
             </q-badge>
           </div>
 
@@ -46,8 +51,15 @@
         </q-toolbar>
       </q-header>
 
-      <q-drawer v-model="ui.leftDrawerOpen" show-if-above bordered :width="280">
-        <q-list padding>
+      <q-drawer
+        v-model="ui.leftDrawerOpen"
+        show-if-above
+        bordered
+        :width="280"
+        role="navigation"
+        aria-label="Основная навигация"
+      >
+        <q-list padding aria-label="Разделы приложения">
           <q-item-label header class="text-uppercase"> Рабочее пространство </q-item-label>
 
           <q-item v-if="auth.isAuthenticated" v-ripple clickable to="/tickets">
@@ -101,7 +113,7 @@
       </q-drawer>
 
       <q-page-container>
-        <q-page class="q-pa-md">
+        <q-page id="app-main" class="q-pa-md" tabindex="-1">
           <slot />
         </q-page>
       </q-page-container>
@@ -117,7 +129,7 @@
 
 <script setup lang="ts">
 import { useQuasar } from 'quasar';
-import { computed, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { navigateTo } from '#imports';
 import { useAuthStore } from '~/stores/auth';
 import { useUiStore } from '~/stores/ui';
@@ -126,8 +138,17 @@ import { roleLabels } from '~/utils/access';
 const $q = useQuasar();
 const auth = useAuthStore();
 const ui = useUiStore();
+const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine);
 
 const roleLabel = computed(() => (auth.currentUser ? roleLabels[auth.currentUser.role] : ''));
+
+function updateOnlineStatus() {
+  if (typeof navigator === 'undefined') {
+    return;
+  }
+
+  online.value = navigator.onLine;
+}
 
 async function handleLogout() {
   await auth.logout();
@@ -135,6 +156,16 @@ async function handleLogout() {
 }
 
 if (import.meta.client) {
+  onMounted(() => {
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+  });
+
+  onBeforeUnmount(() => {
+    window.removeEventListener('online', updateOnlineStatus);
+    window.removeEventListener('offline', updateOnlineStatus);
+  });
+
   watch(
     () => $q.screen.gt.sm,
     (isDesktop) => {

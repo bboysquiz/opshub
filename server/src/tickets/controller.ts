@@ -54,8 +54,12 @@ export async function patchTicketHandler(req: Request, res: Response): Promise<R
     return res.status(400).json({ message: 'Invalid body' });
   }
 
+  if (!req.user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
   try {
-    const ticket = await updateTicketRecord(params.data.id, parsed.data);
+    const ticket = await updateTicketRecord(params.data.id, parsed.data, req.user);
     return res.json(ticket);
   } catch (err) {
     return handleTicketsError(err, res);
@@ -68,8 +72,12 @@ export async function deleteTicketHandler(req: Request, res: Response): Promise<
     return res.status(400).json({ message: 'Invalid params' });
   }
 
+  if (!req.user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
   try {
-    await deleteTicketRecord(params.data.id);
+    await deleteTicketRecord(params.data.id, req.user);
     return res.status(204).send();
   } catch (err) {
     return handleTicketsError(err, res);

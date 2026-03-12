@@ -32,6 +32,7 @@ import {
   Quasar,
   Ripple,
 } from 'quasar';
+import '@opshub/shared-ui/styles.css';
 import '@quasar/extras/material-icons/material-icons.css';
 import 'quasar/src/css/index.sass';
 import type { App } from 'vue';

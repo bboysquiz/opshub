@@ -53,6 +53,13 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     loading.value = true;
     error.value = null;
 
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      tickets.value = [];
+      error.value = 'Офлайн-режим: аналитика недоступна без сети';
+      loading.value = false;
+      return;
+    }
+
     try {
       tickets.value = await analyticsApi.listTickets();
       lastLoadedAt.value = new Date().toISOString();

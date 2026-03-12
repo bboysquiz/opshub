@@ -15,10 +15,26 @@ export function useTicketsNotify() {
     });
   }
 
-  function notifyRemovedLocally() {
+  function notifyTicketRemoved(result: 'local' | 'queued' | 'deleted') {
+    if (result === 'deleted') {
+      $q.notify({
+        type: 'positive',
+        message: 'Тикет удалён',
+      });
+      return;
+    }
+
+    if (result === 'queued') {
+      $q.notify({
+        type: 'warning',
+        message: 'Тикет поставлен в очередь на удаление',
+      });
+      return;
+    }
+
     $q.notify({
       type: 'warning',
-      message: 'Тикет локально удалён',
+      message: 'Локальный черновик удалён',
     });
   }
 
@@ -49,7 +65,7 @@ export function useTicketsNotify() {
 
   return {
     notifySavedLocally,
-    notifyRemovedLocally,
+    notifyTicketRemoved,
     notifySaveFailed,
     notifySyncFailed,
     notifyConflictDetected,

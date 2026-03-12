@@ -21,7 +21,7 @@ export default defineNuxtConfig({
   },
   pwa: {
     strategies: 'injectManifest',
-    srcDir: 'app',
+    srcDir: '.',
     filename: 'sw.ts',
     injectManifest: {
       globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2}'],
@@ -49,7 +49,7 @@ export default defineNuxtConfig({
       ],
     },
     devOptions: {
-      enabled: true,
+      enabled: false,
       suppressWarnings: true,
       navigateFallbackAllowlist: [
         /^\/$/,

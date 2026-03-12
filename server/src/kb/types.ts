@@ -18,3 +18,11 @@ export type KbArticleListItemDto = {
 export type KbArticleDto = KbArticleListItemDto & {
   content: string;
 };
+
+export type CreateKbArticleInput = {
+  slug: string;
+  title: string;
+  content: string;
+};
+
+export type UpdateKbArticleInput = Partial<CreateKbArticleInput>;

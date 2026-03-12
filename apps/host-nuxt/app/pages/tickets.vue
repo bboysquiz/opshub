@@ -1,7 +1,5 @@
 <template>
   <div>
-    <h1 class="text-h5 q-mb-md">Тикеты</h1>
-
     <q-banner v-if="error" rounded class="bg-red-1 text-red-9 q-mb-md">
       {{ error }}
     </q-banner>
@@ -17,6 +15,8 @@
       :is="RemoteComp"
       v-else-if="RemoteComp"
       :user-role="auth.currentUser?.role ?? null"
+      :current-user-id="auth.currentUser?.id ?? null"
+      :current-user-email="auth.currentUser?.email ?? null"
       :can-update-tickets="auth.canUpdateTickets"
       :can-delete-tickets="auth.canDeleteTickets"
       :use-new-tickets-table="auth.featureFlags.newTicketsTable"
@@ -35,7 +35,7 @@ const {
   error,
   loading,
 } = useRemoteModule({
-  entryUrl: 'http://localhost:3010/assets/remoteEntry.js',
+  entryUrl: 'http://localhost:3010/remoteEntry.js',
   exposedModule: './TicketsApp',
   errorMessage: 'Не удалось загрузить модуль тикетов',
 });

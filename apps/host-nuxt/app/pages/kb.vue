@@ -1,7 +1,5 @@
 <template>
   <div>
-    <h1 class="text-h5 q-mb-md">База знаний</h1>
-
     <q-banner v-if="error" rounded class="bg-red-1 text-red-9 q-mb-md">
       {{ error }}
     </q-banner>
@@ -13,19 +11,26 @@
       </q-card-section>
     </q-card>
 
-    <component :is="RemoteComp" v-else-if="RemoteComp" />
+    <component
+      :is="RemoteComp"
+      v-else-if="RemoteComp"
+      :user-role="auth.currentUser?.role ?? null"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRemoteModule } from '~/composables/useRemoteModule';
+import { useAuthStore } from '~/stores/auth';
+
+const auth = useAuthStore();
 
 const {
   component: RemoteComp,
   error,
   loading,
 } = useRemoteModule({
-  entryUrl: 'http://localhost:3020/assets/remoteEntry.js',
+  entryUrl: 'http://localhost:3020/remoteEntry.js',
   exposedModule: './KbApp',
   errorMessage: 'Не удалось загрузить удалённый модуль базы знаний',
 });

@@ -1,24 +1,22 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import type { ChartData, ChartOptions } from 'chart.js';
+import { OpPageHeader, OpPanel, useReducedMotion } from '@opshub/shared-ui';
 import {
   QBadge,
   QBanner,
   QBtn,
-  QCard,
-  QCardSection,
   QDate,
   QIcon,
   QInput,
   QPopupProxy,
   QSelect,
   QSeparator,
-  QSpace,
   QSpinner,
   QTable,
   QTd,
 } from 'quasar';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { Bar, Doughnut, Line } from 'vue-chartjs';
 import { useAuthStore } from '../../../stores/auth';
 import { useAnalyticsStore } from '../stores/analytics';
@@ -46,9 +44,9 @@ const analyticsStore = useAnalyticsStore();
 const { availableTeams, error, filters, lastLoadedAt, loading, tickets } =
   storeToRefs(analyticsStore);
 const { snapshot } = useMemoizedAnalytics(tickets, filters);
+const { reducedMotion } = useReducedMotion();
 
 const filtersReady = ref(false);
-const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine);
 const dateFromPopup = ref<{ hide: () => void } | null>(null);
 const dateToPopup = ref<{ hide: () => void } | null>(null);
 
@@ -102,12 +100,10 @@ const statusChartData = computed<ChartData<'bar'>>(() => ({
   ],
 }));
 
-const statusChartOptions: ChartOptions<'bar'> = {
+const statusChartOptions = computed<ChartOptions<'bar'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  animation: {
-    duration: 220,
-  },
+  animation: reducedMotion.value ? false : { duration: 220 },
   normalized: true,
   plugins: {
     legend: {
@@ -122,7 +118,7 @@ const statusChartOptions: ChartOptions<'bar'> = {
       },
     },
   },
-};
+}));
 
 const timelineChartData = computed<ChartData<'line'>>(() => ({
   labels: snapshot.value.byTimeline.map((item) => item.label),
@@ -140,12 +136,10 @@ const timelineChartData = computed<ChartData<'line'>>(() => ({
   ],
 }));
 
-const timelineChartOptions: ChartOptions<'line'> = {
+const timelineChartOptions = computed<ChartOptions<'line'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  animation: {
-    duration: 220,
-  },
+  animation: reducedMotion.value ? false : { duration: 220 },
   normalized: true,
   plugins: {
     legend: {
@@ -160,7 +154,7 @@ const timelineChartOptions: ChartOptions<'line'> = {
       },
     },
   },
-};
+}));
 
 const slaChartData = computed<ChartData<'doughnut'>>(() => ({
   labels: snapshot.value.bySla.map((item) => item.label),
@@ -174,19 +168,17 @@ const slaChartData = computed<ChartData<'doughnut'>>(() => ({
   ],
 }));
 
-const slaChartOptions: ChartOptions<'doughnut'> = {
+const slaChartOptions = computed<ChartOptions<'doughnut'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  animation: {
-    duration: 220,
-  },
+  animation: reducedMotion.value ? false : { duration: 220 },
   normalized: true,
   plugins: {
     legend: {
       position: 'bottom',
     },
   },
-};
+}));
 
 const teamChartData = computed<ChartData<'bar'>>(() => ({
   labels: snapshot.value.byTeam.map((item) => item.label),
@@ -201,12 +193,10 @@ const teamChartData = computed<ChartData<'bar'>>(() => ({
   ],
 }));
 
-const teamChartOptions: ChartOptions<'bar'> = {
+const teamChartOptions = computed<ChartOptions<'bar'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
-  animation: {
-    duration: 220,
-  },
+  animation: reducedMotion.value ? false : { duration: 220 },
   normalized: true,
   plugins: {
     legend: {
@@ -222,13 +212,21 @@ const teamChartOptions: ChartOptions<'bar'> = {
       },
     },
   },
-};
+}));
 
 const tableRows = computed(() => snapshot.value.tableRows);
-
-function updateOnlineState() {
-  online.value = navigator.onLine;
-}
+const statusSummary = computed(() =>
+  snapshot.value.byStatus.map((item) => `${item.label}: ${item.count}`).join(', '),
+);
+const timelineSummary = computed(() =>
+  snapshot.value.byTimeline.map((item) => `${item.label}: ${item.count}`).join(', '),
+);
+const slaSummary = computed(() =>
+  snapshot.value.bySla.map((item) => `${item.label}: ${item.count}`).join(', '),
+);
+const teamSummary = computed(() =>
+  snapshot.value.byTeam.map((item) => `${item.label}: ${item.count}`).join(', '),
+);
 
 function formatLastLoadedAt(value: string | null) {
   if (!value) {
@@ -302,52 +300,60 @@ onMounted(async () => {
   analyticsStore.hydrateFilters(restoreAnalyticsFilters());
   filtersReady.value = true;
 
-  window.addEventListener('online', updateOnlineState);
-  window.addEventListener('offline', updateOnlineState);
-
   await authStore.bootstrapAuth();
   await analyticsStore.loadTickets();
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('online', updateOnlineState);
-  window.removeEventListener('offline', updateOnlineState);
 });
 </script>
 
 <template>
-  <div class="analytics-page q-pa-md">
-    <div class="row items-center q-gutter-sm q-mb-md">
-      <div class="text-h6">Аналитика</div>
-      <q-badge :color="online ? 'positive' : 'negative'" class="q-px-sm q-py-xs">
-        {{ online ? 'онлайн' : 'офлайн' }}
-      </q-badge>
-      <q-badge color="grey-7" class="q-px-sm q-py-xs">
-        обновлено {{ formatLastLoadedAt(lastLoadedAt) }}
-      </q-badge>
-      <q-space />
-      <q-btn
-        flat
-        color="secondary"
-        label="Сбросить фильтры"
-        @click="analyticsStore.resetFilters()"
-      />
-      <q-btn
-        flat
-        color="secondary"
-        label="Экспорт CSV"
-        :disable="!tableRows.length"
-        @click="exportCsv"
-      />
-      <q-btn color="primary" label="Обновить" :loading="loading" @click="refreshAnalytics" />
-    </div>
+  <section class="analytics-page op-page q-pa-md" aria-labelledby="analytics-page-title">
+    <OpPageHeader
+      id="analytics-page-title"
+      title="Аналитика"
+      subtitle="SLA, динамика тикетов и фильтры с сохранением в URL и sessionStorage."
+    >
+      <template #meta>
+        <q-badge color="grey-7" class="q-px-sm q-py-xs">
+          обновлено {{ formatLastLoadedAt(lastLoadedAt) }}
+        </q-badge>
+      </template>
 
-    <q-banner v-if="error" rounded class="bg-red-1 text-red-9 q-mb-md">
+      <template #actions>
+        <q-btn
+          flat
+          color="secondary"
+          label="Сбросить фильтры"
+          aria-label="Сбросить фильтры аналитики"
+          @click="analyticsStore.resetFilters()"
+        />
+        <q-btn
+          flat
+          color="secondary"
+          label="Экспорт CSV"
+          aria-label="Экспортировать таблицу аналитики в CSV"
+          :disable="!tableRows.length"
+          @click="exportCsv"
+        />
+        <q-btn
+          color="primary"
+          label="Обновить"
+          aria-label="Обновить аналитику"
+          :loading="loading"
+          @click="refreshAnalytics"
+        />
+      </template>
+    </OpPageHeader>
+
+    <q-banner v-if="error" rounded class="bg-red-1 text-red-9 q-mb-md" aria-live="polite">
       {{ error }}
     </q-banner>
 
-    <q-card flat bordered class="q-mb-md">
-      <q-card-section class="row items-center q-col-gutter-md">
+    <OpPanel
+      class="q-mb-md"
+      title="Доступ"
+      caption="Аналитика использует защищённый endpoint и подтягивает сессию через refresh-cookie."
+    >
+      <div class="row items-center q-col-gutter-md">
         <div class="col-12 col-lg-6">
           <q-input
             v-model="accessTokenInput"
@@ -356,18 +362,18 @@ onBeforeUnmount(() => {
             type="password"
             label="Токен доступа (JWT)"
             placeholder="Вставь JWT, если refresh-cookie ещё нет"
+            aria-label="Токен доступа JWT"
           />
         </div>
 
         <div class="col-12 col-lg-6 text-caption text-grey-7">
-          Аналитика использует защищённый endpoint. Если сессия уже открыта, токен подтянется
-          автоматически через refresh-cookie.
+          Если сессия уже открыта, токен подтянется автоматически через refresh-cookie.
         </div>
-      </q-card-section>
-    </q-card>
+      </div>
+    </OpPanel>
 
-    <q-card flat bordered class="q-mb-md">
-      <q-card-section class="row q-col-gutter-md">
+    <OpPanel class="q-mb-md" title="Фильтры" caption="Фильтры сохраняются в URL и sessionStorage.">
+      <div class="row q-col-gutter-md">
         <div class="col-12 col-md-3">
           <q-input
             :model-value="filters.dateFrom"
@@ -376,6 +382,7 @@ onBeforeUnmount(() => {
             readonly
             placeholder="ГГГГ-ММ-ДД"
             label="Дата с"
+            aria-label="Дата начала периода"
           >
             <template #prepend>
               <q-icon name="event" class="cursor-pointer">
@@ -429,6 +436,7 @@ onBeforeUnmount(() => {
             readonly
             placeholder="ГГГГ-ММ-ДД"
             label="Дата по"
+            aria-label="Дата окончания периода"
           >
             <template #prepend>
               <q-icon name="event" class="cursor-pointer">
@@ -483,6 +491,7 @@ onBeforeUnmount(() => {
             map-options
             label="Статус"
             :options="statusOptions"
+            aria-label="Фильтр по статусу"
             @update:model-value="(value) => patchFilter('status', value)"
           />
         </div>
@@ -496,132 +505,129 @@ onBeforeUnmount(() => {
             map-options
             label="Команда"
             :options="teamOptions"
+            aria-label="Фильтр по команде"
             @update:model-value="(value) => patchFilter('team', value)"
           />
         </div>
-      </q-card-section>
+      </div>
 
       <q-separator />
 
-      <q-card-section class="text-caption text-grey-7">
+      <div class="text-caption text-grey-7">
         Фильтры сохраняются в URL и `sessionStorage`. В текущей модели поле команды ещё не выделено,
         поэтому фильтр "Команда" строится по роли исполнителя.
-      </q-card-section>
-    </q-card>
+      </div>
+    </OpPanel>
 
     <div class="row q-col-gutter-md q-mb-md">
       <div class="col-12 col-sm-6 col-xl-3">
-        <q-card flat bordered>
-          <q-card-section>
+        <OpPanel title="Всего тикетов">
+          <div>
             <div class="text-caption text-grey-7">Всего тикетов</div>
             <div class="text-h5">
               {{ snapshot.totalCount }}
             </div>
-          </q-card-section>
-        </q-card>
+          </div>
+        </OpPanel>
       </div>
 
       <div class="col-12 col-sm-6 col-xl-3">
-        <q-card flat bordered>
-          <q-card-section>
+        <OpPanel title="Активные">
+          <div>
             <div class="text-caption text-grey-7">Активные</div>
             <div class="text-h5">
               {{ snapshot.activeCount }}
             </div>
-          </q-card-section>
-        </q-card>
+          </div>
+        </OpPanel>
       </div>
 
       <div class="col-12 col-sm-6 col-xl-3">
-        <q-card flat bordered>
-          <q-card-section>
+        <OpPanel title="Среднее время реакции">
+          <div>
             <div class="text-caption text-grey-7">Среднее время реакции</div>
             <div class="text-h6">
               {{ formatDuration(snapshot.avgResponseMinutes) }}
             </div>
-          </q-card-section>
-        </q-card>
+          </div>
+        </OpPanel>
       </div>
 
       <div class="col-12 col-sm-6 col-xl-3">
-        <q-card flat bordered>
-          <q-card-section>
+        <OpPanel title="Нарушено SLA">
+          <div>
             <div class="text-caption text-grey-7">Нарушено SLA</div>
             <div class="text-h5">
               {{ snapshot.breachedCount }}
             </div>
             <div class="text-caption text-grey-7">решено {{ snapshot.resolvedSharePercent }}%</div>
-          </q-card-section>
-        </q-card>
+          </div>
+        </OpPanel>
       </div>
     </div>
 
-    <div v-if="loading" class="row items-center q-gutter-sm q-mb-md">
+    <div v-if="loading" class="row items-center q-gutter-sm q-mb-md" aria-live="polite">
       <q-spinner />
       <div>Загружаю аналитику…</div>
     </div>
 
     <div class="row q-col-gutter-md q-mb-md">
       <div class="col-12 col-xl-4">
-        <q-card flat bordered class="analytics-card">
-          <q-card-section>
-            <div class="text-subtitle1">Тикеты по статусам</div>
-          </q-card-section>
-          <q-separator />
-          <q-card-section class="analytics-chart">
+        <OpPanel class="analytics-card" title="Тикеты по статусам">
+          <div class="op-sr-only" aria-live="polite">
+            {{ statusSummary }}
+          </div>
+          <div class="analytics-chart" role="img" aria-label="График тикетов по статусам">
             <Bar :data="statusChartData" :options="statusChartOptions" />
-          </q-card-section>
-        </q-card>
+          </div>
+        </OpPanel>
       </div>
 
       <div class="col-12 col-xl-5">
-        <q-card flat bordered class="analytics-card">
-          <q-card-section>
-            <div class="text-subtitle1">Тикеты во времени</div>
-          </q-card-section>
-          <q-separator />
-          <q-card-section class="analytics-chart analytics-chart--wide">
+        <OpPanel class="analytics-card" title="Тикеты во времени">
+          <div class="op-sr-only" aria-live="polite">
+            {{ timelineSummary }}
+          </div>
+          <div
+            class="analytics-chart analytics-chart--wide"
+            role="img"
+            aria-label="График тикетов во времени"
+          >
             <Line :data="timelineChartData" :options="timelineChartOptions" />
-          </q-card-section>
-        </q-card>
+          </div>
+        </OpPanel>
       </div>
 
       <div class="col-12 col-xl-3">
-        <q-card flat bordered class="analytics-card">
-          <q-card-section>
-            <div class="text-subtitle1">SLA</div>
-          </q-card-section>
-          <q-separator />
-          <q-card-section class="analytics-chart">
+        <OpPanel class="analytics-card" title="SLA">
+          <div class="op-sr-only" aria-live="polite">
+            {{ slaSummary }}
+          </div>
+          <div class="analytics-chart" role="img" aria-label="График SLA">
             <Doughnut :data="slaChartData" :options="slaChartOptions" />
-          </q-card-section>
-        </q-card>
+          </div>
+        </OpPanel>
       </div>
     </div>
 
     <div class="row q-col-gutter-md q-mb-md">
       <div class="col-12">
-        <q-card flat bordered class="analytics-card">
-          <q-card-section>
-            <div class="text-subtitle1">Распределение по командам</div>
-          </q-card-section>
-          <q-separator />
-          <q-card-section class="analytics-chart analytics-chart--wide">
+        <OpPanel class="analytics-card" title="Распределение по командам">
+          <div class="op-sr-only" aria-live="polite">
+            {{ teamSummary }}
+          </div>
+          <div
+            class="analytics-chart analytics-chart--wide"
+            role="img"
+            aria-label="График распределения по командам"
+          >
             <Bar :data="teamChartData" :options="teamChartOptions" />
-          </q-card-section>
-        </q-card>
+          </div>
+        </OpPanel>
       </div>
     </div>
 
-    <q-card flat bordered>
-      <q-card-section class="row items-center">
-        <div class="text-subtitle1">Список тикетов</div>
-        <q-space />
-        <div class="text-caption text-grey-7">Virtual scroll включён для длинных списков</div>
-      </q-card-section>
-
-      <q-separator />
-
+    <OpPanel title="Список тикетов" caption="Virtual scroll включён для длинных списков.">
       <q-table
         flat
         row-key="id"
@@ -632,6 +638,7 @@ onBeforeUnmount(() => {
         :columns="columns"
         no-data-label="Под выбранные фильтры тикетов нет"
         table-style="max-height: 420px"
+        aria-label="Таблица тикетов аналитики"
       >
         <template #body-cell-status="props">
           <q-td :props="props">
@@ -677,8 +684,8 @@ onBeforeUnmount(() => {
           </q-td>
         </template>
       </q-table>
-    </q-card>
-  </div>
+    </OpPanel>
+  </section>
 </template>
 
 <style scoped>
@@ -692,5 +699,12 @@ onBeforeUnmount(() => {
 
 .analytics-chart--wide {
   height: 320px;
+}
+
+@media (max-width: 1023px) {
+  .analytics-chart,
+  .analytics-chart--wide {
+    height: 240px;
+  }
 }
 </style>

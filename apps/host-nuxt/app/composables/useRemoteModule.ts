@@ -36,6 +36,8 @@ export type UseRemoteModuleOptions = {
 };
 
 const remoteContainerCache: Record<string, Promise<RemoteContainer>> = {};
+const remoteStyleCache: Record<string, Promise<void>> = {};
+const injectedRemoteStyles = new Set<string>();
 
 const sharedVersions = {
   vue: vueVersion,
@@ -113,6 +115,71 @@ function createDefaultShareScope(): RemoteShareScope {
   };
 }
 
+function extractRemoteStylePaths(remoteEntrySource: string): string[] {
+  const matches = remoteEntrySource.matchAll(/["'`]([^"'`]+\.css)["'`]/g);
+  const paths = new Set<string>();
+
+  for (const match of matches) {
+    const path = match[1];
+    if (!path || path.startsWith('data:')) {
+      continue;
+    }
+
+    paths.add(path);
+  }
+
+  return [...paths];
+}
+
+function hasStylesheetLink(href: string) {
+  return Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')).some(
+    (link) => link.href === href,
+  );
+}
+
+function ensureRemoteStyleLink(href: string): Promise<void> {
+  if (injectedRemoteStyles.has(href) || hasStylesheetLink(href)) {
+    injectedRemoteStyles.add(href);
+    return Promise.resolve();
+  }
+
+  injectedRemoteStyles.add(href);
+
+  return new Promise((resolve) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    link.onload = () => resolve();
+    link.onerror = () => resolve();
+    document.head.appendChild(link);
+  });
+}
+
+async function ensureRemoteStyles(entryUrl: string) {
+  if (remoteStyleCache[entryUrl]) {
+    return remoteStyleCache[entryUrl];
+  }
+
+  remoteStyleCache[entryUrl] = fetch(entryUrl, {
+    cache: 'no-cache',
+  })
+    .then(async (response) => {
+      if (!response.ok) {
+        return;
+      }
+
+      const source = await response.text();
+      const stylePaths = extractRemoteStylePaths(source);
+
+      await Promise.all(
+        stylePaths.map((stylePath) => ensureRemoteStyleLink(new URL(stylePath, entryUrl).href)),
+      );
+    })
+    .catch(() => {});
+
+  return remoteStyleCache[entryUrl];
+}
+
 export async function loadRemoteContainerOnce(url: string, timeoutMs = 15000) {
   const absoluteUrl = new URL(url, window.location.href).href;
 
@@ -121,15 +188,17 @@ export async function loadRemoteContainerOnce(url: string, timeoutMs = 15000) {
   }
 
   remoteContainerCache[absoluteUrl] = withTimeout(
-    import(/* @vite-ignore */ absoluteUrl).then(async (remoteContainer) => {
-      if (!isRemoteContainer(remoteContainer)) {
-        throw new Error(`Remote entry did not expose a valid container: ${absoluteUrl}`);
-      }
+    ensureRemoteStyles(absoluteUrl).then(() =>
+      import(/* @vite-ignore */ absoluteUrl).then(async (remoteContainer) => {
+        if (!isRemoteContainer(remoteContainer)) {
+          throw new Error(`Remote entry did not expose a valid container: ${absoluteUrl}`);
+        }
 
-      await remoteContainer.init?.(createDefaultShareScope());
+        await remoteContainer.init?.(createDefaultShareScope());
 
-      return remoteContainer;
-    }),
+        return remoteContainer;
+      }),
+    ),
     timeoutMs,
     `Loading timeout: ${absoluteUrl}`,
   ).catch((error) => {

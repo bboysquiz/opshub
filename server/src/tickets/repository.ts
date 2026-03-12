@@ -5,21 +5,29 @@ import type { CreateTicketInput, TicketRow, UpdateTicketInput } from './types';
 type Queryable = Pick<PoolClient, 'query'>;
 
 const TICKET_COLUMNS = `
-  id,
-  title,
-  description,
-  status,
-  priority,
-  created_by,
-  assigned_to,
-  updated_at,
-  created_at
+  tickets.id,
+  tickets.title,
+  tickets.description,
+  tickets.status,
+  tickets.priority,
+  tickets.created_by,
+  creator.email as created_by_email,
+  tickets.assigned_to,
+  assignee.email as assigned_to_email,
+  tickets.updated_at,
+  tickets.created_at
 `;
+
+function baseTicketQuery() {
+  return `select ${TICKET_COLUMNS}
+     from tickets
+     left join users creator on creator.id = tickets.created_by
+     left join users assignee on assignee.id = tickets.assigned_to`;
+}
 
 export async function listTickets(db: Queryable = pool): Promise<TicketRow[]> {
   const result = await db.query<TicketRow>(
-    `select ${TICKET_COLUMNS}
-     from tickets
+    `${baseTicketQuery()}
      order by created_at desc`,
   );
   return result.rows;
@@ -27,9 +35,8 @@ export async function listTickets(db: Queryable = pool): Promise<TicketRow[]> {
 
 export async function getTicketById(id: string, db: Queryable = pool): Promise<TicketRow | null> {
   const result = await db.query<TicketRow>(
-    `select ${TICKET_COLUMNS}
-     from tickets
-     where id = $1`,
+    `${baseTicketQuery()}
+     where tickets.id = $1`,
     [id],
   );
 
@@ -40,13 +47,14 @@ export async function createTicket(
   args: CreateTicketInput & { createdBy: string },
   db: Queryable = pool,
 ): Promise<TicketRow> {
-  const result = await db.query<TicketRow>(
+  const result = await db.query<{ id: string }>(
     `insert into tickets (title, description, priority, created_by, assigned_to)
      values ($1, $2, $3, $4, $5)
-     returning ${TICKET_COLUMNS}`,
+     returning id`,
     [args.title, args.description, args.priority, args.createdBy, args.assignedTo ?? null],
   );
-  return result.rows[0];
+
+  return getTicketById(result.rows[0].id, db) as Promise<TicketRow>;
 }
 
 export async function updateTicketById(
@@ -86,15 +94,19 @@ export async function updateTicketById(
 
   values.push(id);
 
-  const result = await db.query<TicketRow>(
+  const result = await db.query<{ id: string }>(
     `update tickets
      set ${updates.join(', ')}, updated_at = now()
      where id = $${values.length}
-     returning ${TICKET_COLUMNS}`,
+     returning id`,
     values,
   );
 
-  return result.rowCount ? result.rows[0] : null;
+  if (!result.rowCount) {
+    return null;
+  }
+
+  return getTicketById(result.rows[0].id, db);
 }
 
 export async function deleteTicketById(id: string, db: Queryable = pool): Promise<boolean> {

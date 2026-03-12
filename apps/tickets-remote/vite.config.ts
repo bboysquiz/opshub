@@ -4,6 +4,7 @@ import federation from '@originjs/vite-plugin-federation';
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '',
   plugins: [
     vue(),
     federation({
@@ -11,7 +12,6 @@ export default defineConfig({
       filename: 'remoteEntry.js',
       exposes: {
         './TicketsApp': './src/TicketsApp.vue',
-        './SyncDiagnostics': './src/features/tickets/ui/SyncDiagnostics.vue',
       },
       shared: {
         vue: { requiredVersion: '^3.5.0' },
@@ -34,6 +34,7 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
+    assetsDir: '',
     cssCodeSplit: false,
     chunkSizeWarningLimit: 650,
   },

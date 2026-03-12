@@ -32,25 +32,14 @@ async function ensureCsrfToken() {
   return token;
 }
 
-export const useAuthStore = defineStore('tickets-auth', () => {
+export const useAuthStore = defineStore('kb-auth', () => {
   const accessToken = ref('');
-  const currentUserId = ref<string | null>(null);
-  const currentUserEmail = ref<string | null>(null);
   const refreshInFlight = ref<Promise<string | null> | null>(null);
   const bootstrapComplete = ref(false);
   const bootstrapInFlight = ref<Promise<string | null> | null>(null);
 
-  function setAccessToken(token: string) {
-    accessToken.value = token;
-  }
-
   function clearAccessToken() {
     accessToken.value = '';
-  }
-
-  function setCurrentUser(user: { id: string | null; email: string | null }) {
-    currentUserId.value = user.id;
-    currentUserEmail.value = user.email;
   }
 
   async function refreshAccessToken(): Promise<string | null> {
@@ -58,15 +47,9 @@ export const useAuthStore = defineStore('tickets-auth', () => {
       return refreshInFlight.value;
     }
 
-    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      clearAccessToken();
-      return null;
-    }
-
     refreshInFlight.value = (async () => {
       try {
         const csrf = await ensureCsrfToken();
-
         const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
           method: 'POST',
           credentials: 'include',
@@ -82,7 +65,6 @@ export const useAuthStore = defineStore('tickets-auth', () => {
 
         const data = (await res.json()) as { accessToken?: string };
         const nextToken = data.accessToken ?? '';
-
         accessToken.value = nextToken;
         return nextToken || null;
       } catch {
@@ -124,14 +106,6 @@ export const useAuthStore = defineStore('tickets-auth', () => {
 
   return {
     accessToken,
-    currentUserId,
-    currentUserEmail,
-    refreshInFlight,
-    bootstrapComplete,
-    bootstrapInFlight,
-    setAccessToken,
-    clearAccessToken,
-    setCurrentUser,
     refreshAccessToken,
     bootstrapAuth,
   };

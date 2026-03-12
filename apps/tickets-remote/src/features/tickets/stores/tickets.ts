@@ -93,6 +93,7 @@ export const useTicketsStore = defineStore('tickets', () => {
   }
 
   async function createTicket(input: CreateTicketInput) {
+    const authStore = useAuthStore();
     const title = input.title.trim();
     if (!title) {
       throw new Error('Нужно указать заголовок');
@@ -107,8 +108,10 @@ export const useTicketsStore = defineStore('tickets', () => {
       description: input.description,
       status: 'open',
       priority: input.priority,
-      createdBy: null,
+      createdBy: authStore.currentUserId,
+      createdByEmail: authStore.currentUserEmail,
       assignedTo: input.assignedTo ?? null,
+      assignedToEmail: null,
       updatedAt: timestamp,
       createdAt: timestamp,
       syncStatus: 'queued',
@@ -214,7 +217,7 @@ export const useTicketsStore = defineStore('tickets', () => {
     }
   }
 
-  async function removeTicket(ticketId: string) {
+  async function removeTicket(ticketId: string): Promise<RemoveTicketResult | undefined> {
     const current = await ticketsDb.tickets.get(ticketId);
     if (!current) return;
 
@@ -242,7 +245,7 @@ export const useTicketsStore = defineStore('tickets', () => {
 
       await refreshFromDb();
       await syncStore.refreshQueueFromDb();
-      return;
+      return 'local';
     }
 
     const timestamp = nowIso();
@@ -281,8 +284,19 @@ export const useTicketsStore = defineStore('tickets', () => {
     await syncStore.refreshQueueFromDb();
 
     if (syncStore.online) {
-      void syncStore.flushQueue();
+      await syncStore.flushQueue();
+
+      const persistedTicket = await ticketsDb.tickets.get(ticketId);
+      const queuedCommand = (await ticketsDb.queue.toArray()).find(
+        (command) => command.ticketId === ticketId,
+      );
+
+      if (!persistedTicket && !queuedCommand) {
+        return 'deleted';
+      }
     }
+
+    return 'queued';
   }
 
   return {
@@ -298,3 +312,4 @@ export const useTicketsStore = defineStore('tickets', () => {
     removeTicket,
   };
 });
+type RemoveTicketResult = 'local' | 'queued' | 'deleted';

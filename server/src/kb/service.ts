@@ -1,5 +1,20 @@
-import { findKbArticleBySlug, listKbArticles } from './repository';
-import type { KbArticleDto, KbArticleListItemDto, KbArticleRow } from './types';
+import {
+  createKbArticle,
+  deleteKbArticleById,
+  findKbArticleById,
+  findKbArticleBySlug,
+  listKbArticles,
+  searchKbArticles,
+  updateKbArticleById,
+} from './repository';
+import { KbError } from './errors';
+import type {
+  CreateKbArticleInput,
+  KbArticleDto,
+  KbArticleListItemDto,
+  KbArticleRow,
+  UpdateKbArticleInput,
+} from './types';
 
 function mapListItem(row: KbArticleRow): KbArticleListItemDto {
   return {
@@ -43,6 +58,11 @@ export async function getKbArticlesList(): Promise<KbArticleListItemDto[]> {
   return rows.map(mapListItem);
 }
 
+export async function searchKbArticlesList(query: string): Promise<KbArticleListItemDto[]> {
+  const rows = await searchKbArticles(query);
+  return rows.map(mapListItem);
+}
+
 export async function getKbArticleBySlug(
   slug: string,
 ): Promise<{ article: KbArticleDto; etag: string } | null> {
@@ -53,4 +73,58 @@ export async function getKbArticleBySlug(
     article: mapArticle(row),
     etag: buildKbArticleEtag(row),
   };
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505';
+}
+
+export async function createKbArticleRecord(payload: CreateKbArticleInput): Promise<KbArticleDto> {
+  try {
+    const row = await createKbArticle(payload);
+    return mapArticle(row);
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new KbError(409, 'Статья с таким slug уже существует');
+    }
+
+    throw err;
+  }
+}
+
+export async function updateKbArticleRecord(
+  id: string,
+  payload: UpdateKbArticleInput,
+): Promise<KbArticleDto> {
+  try {
+    const existing = await findKbArticleById(id);
+    if (!existing) {
+      throw new KbError(404, 'Article not found');
+    }
+
+    const row = await updateKbArticleById(id, payload);
+    if (!row) {
+      throw new KbError(404, 'Article not found');
+    }
+
+    return mapArticle(row);
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new KbError(409, 'Статья с таким slug уже существует');
+    }
+
+    throw err;
+  }
+}
+
+export async function deleteKbArticleRecord(id: string): Promise<void> {
+  const existing = await findKbArticleById(id);
+  if (!existing) {
+    throw new KbError(404, 'Article not found');
+  }
+
+  const deleted = await deleteKbArticleById(id);
+  if (!deleted) {
+    throw new KbError(404, 'Article not found');
+  }
 }

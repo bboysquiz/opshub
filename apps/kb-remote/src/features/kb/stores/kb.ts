@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import { kbApi, type ArticleListItem } from '../api/kbApi';
+import {
+  kbApi,
+  type ArticleListItem,
+  type CreateArticleInput,
+  type UpdateArticleInput,
+} from '../api/kbApi';
 import { kbDb, type Article } from '../infra/dexie';
 import { buildIndex, searchArticles } from '../search/search';
 
@@ -42,23 +47,64 @@ export const useKbStore = defineStore('kb', () => {
   const list = ref<KbListItem[]>([]);
   const loadingList = ref(false);
   const loadingArticle = ref(false);
+  const searching = ref(false);
   const error = ref<string | null>(null);
   const current = ref<Article | null>(null);
   const query = ref('');
   const results = ref<KbSearchResult[]>([]);
+  let activeSearchId = 0;
 
   async function rebuildIndex() {
     const allLocal = await loadLocalArticles();
     buildIndex(allLocal);
   }
 
-  function syncSearchResults(nextQuery: string) {
+  async function runSearch(nextQuery: string) {
+    const normalizedQuery = nextQuery.trim();
     query.value = nextQuery;
 
-    results.value = searchArticles(nextQuery).map((result) => ({
-      slug: String(result.slug),
-      title: String(result.title),
-    }));
+    if (!normalizedQuery) {
+      results.value = [];
+      searching.value = false;
+      return;
+    }
+
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      results.value = searchArticles(normalizedQuery).map((result) => ({
+        slug: String(result.slug),
+        title: String(result.title),
+      }));
+      searching.value = false;
+      return;
+    }
+
+    const searchId = ++activeSearchId;
+    searching.value = true;
+
+    try {
+      const response = await kbApi.search(normalizedQuery);
+      if (searchId !== activeSearchId) {
+        return;
+      }
+
+      results.value = response.items.map((item) => ({
+        slug: item.slug,
+        title: item.title,
+      }));
+    } catch {
+      if (searchId !== activeSearchId) {
+        return;
+      }
+
+      results.value = searchArticles(normalizedQuery).map((result) => ({
+        slug: String(result.slug),
+        title: String(result.title),
+      }));
+    } finally {
+      if (searchId === activeSearchId) {
+        searching.value = false;
+      }
+    }
   }
 
   async function loadList() {
@@ -92,7 +138,7 @@ export const useKbStore = defineStore('kb', () => {
     }
 
     await rebuildIndex();
-    syncSearchResults(query.value);
+    await runSearch(query.value);
   }
 
   async function open(slug: string) {
@@ -102,7 +148,7 @@ export const useKbStore = defineStore('kb', () => {
     try {
       current.value = await kbApi.get(slug);
       await rebuildIndex();
-      syncSearchResults(query.value);
+      await runSearch(query.value);
     } catch (loadError) {
       current.value = null;
       error.value = loadError instanceof Error ? loadError.message : 'Не удалось загрузить статью';
@@ -142,17 +188,80 @@ export const useKbStore = defineStore('kb', () => {
     }
 
     await rebuildIndex();
-    syncSearchResults(query.value);
+    await runSearch(query.value);
   }
 
-  function setQuery(nextQuery: string) {
-    syncSearchResults(nextQuery);
+  async function createArticle(payload: CreateArticleInput) {
+    const article = await kbApi.create(payload);
+
+    current.value = article;
+    list.value = sortByUpdatedAtDesc([
+      {
+        id: article.id,
+        slug: article.slug,
+        title: article.title,
+        updatedAt: article.updatedAt,
+        createdAt: article.createdAt,
+        savedOffline: article.savedOffline,
+      },
+      ...list.value.filter((item) => item.id !== article.id),
+    ]);
+
+    error.value = null;
+    await rebuildIndex();
+    await runSearch(query.value);
+
+    return article;
+  }
+
+  async function updateArticle(id: string, previousSlug: string, payload: UpdateArticleInput) {
+    const article = await kbApi.update(id, payload, previousSlug);
+
+    current.value = article;
+    list.value = sortByUpdatedAtDesc(
+      list.value.map((item) =>
+        item.id === article.id
+          ? {
+              id: article.id,
+              slug: article.slug,
+              title: article.title,
+              updatedAt: article.updatedAt,
+              createdAt: article.createdAt,
+              savedOffline: article.savedOffline,
+            }
+          : item,
+      ),
+    );
+
+    error.value = null;
+    await rebuildIndex();
+    await runSearch(query.value);
+
+    return article;
+  }
+
+  async function deleteArticle(id: string, slug: string) {
+    await kbApi.remove(id, slug);
+
+    list.value = list.value.filter((item) => item.id !== id);
+    if (current.value?.id === id) {
+      current.value = null;
+    }
+
+    error.value = null;
+    await rebuildIndex();
+    await runSearch(query.value);
+  }
+
+  async function setQuery(nextQuery: string) {
+    await runSearch(nextQuery);
   }
 
   return {
     list,
     loadingList,
     loadingArticle,
+    searching,
     error,
     current,
     query,
@@ -160,6 +269,9 @@ export const useKbStore = defineStore('kb', () => {
     loadList,
     open,
     toggleSaveOffline,
+    createArticle,
+    updateArticle,
+    deleteArticle,
     setQuery,
   };
 });

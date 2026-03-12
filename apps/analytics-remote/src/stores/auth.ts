@@ -51,6 +51,11 @@ export const useAuthStore = defineStore('analytics-auth', () => {
       return refreshInFlight.value;
     }
 
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      clearAccessToken();
+      return null;
+    }
+
     refreshInFlight.value = (async () => {
       try {
         const csrf = await ensureCsrfToken();
