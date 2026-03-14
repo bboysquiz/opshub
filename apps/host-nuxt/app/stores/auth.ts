@@ -2,11 +2,13 @@ import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { API_BASE_URL } from '@opshub/shared-config';
 import {
+  defaultSlaSettings,
   hasPermission,
   normalizeFeatureFlags,
   type AuthPermission,
   type AuthUser,
   type FeatureFlags,
+  type SlaSettings,
   type UserRole,
 } from '~/utils/access';
 
@@ -83,8 +85,11 @@ export const useAuthStore = defineStore('host-auth', () => {
   const accessToken = ref('');
   const currentUser = ref<AuthUser | null>(null);
   const users = ref<AuthUser[]>([]);
+  const slaSettings = ref<SlaSettings>({ ...defaultSlaSettings });
   const usersLoading = ref(false);
   const usersError = ref<string | null>(null);
+  const slaLoading = ref(false);
+  const slaError = ref<string | null>(null);
   const bootstrapping = ref(false);
   const bootstrapComplete = ref(false);
   const bootstrapInFlight = ref<Promise<string | null> | null>(null);
@@ -112,6 +117,8 @@ export const useAuthStore = defineStore('host-auth', () => {
     currentUser.value = null;
     users.value = [];
     usersError.value = null;
+    slaSettings.value = { ...defaultSlaSettings };
+    slaError.value = null;
   }
 
   async function ensureCsrfToken() {
@@ -391,12 +398,56 @@ export const useAuthStore = defineStore('host-auth', () => {
     }
   }
 
+  async function loadSlaSettings() {
+    if (!canManageUsers.value) {
+      slaSettings.value = { ...defaultSlaSettings };
+      return;
+    }
+
+    slaLoading.value = true;
+    slaError.value = null;
+
+    try {
+      slaSettings.value = await authorizedSend<SlaSettings>('/admin/sla-settings');
+    } catch (error) {
+      slaError.value = normalizeErrorMessage(error);
+      throw new Error(slaError.value ?? 'Не удалось загрузить SLA', {
+        cause: error,
+      });
+    } finally {
+      slaLoading.value = false;
+    }
+  }
+
+  async function updateSlaSettings(patch: {
+    lowMinutes: number;
+    mediumMinutes: number;
+    highMinutes: number;
+  }) {
+    try {
+      const updated = await authorizedSend<SlaSettings>('/admin/sla-settings', {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
+      });
+
+      slaSettings.value = updated;
+      return updated;
+    } catch (error) {
+      throw new Error(normalizeErrorMessage(error), {
+        cause: error,
+      });
+    }
+  }
+
   return {
     accessToken,
     currentUser,
     users,
+    slaSettings,
     usersLoading,
     usersError,
+    slaLoading,
+    slaError,
     bootstrapping,
     bootstrapComplete,
     authInFlight,
@@ -419,5 +470,7 @@ export const useAuthStore = defineStore('host-auth', () => {
     logout,
     loadUsers,
     updateUserAccess,
+    loadSlaSettings,
+    updateSlaSettings,
   };
 });

@@ -88,7 +88,7 @@ export async function createKbArticleHandler(req: Request, res: Response): Promi
   }
 
   try {
-    const article = await createKbArticleRecord(parsed.data);
+    const article = await createKbArticleRecord(parsed.data, req.user);
     return res.status(201).json(article);
   } catch (err) {
     return handleKbError(err, res);
@@ -111,7 +111,7 @@ export async function patchKbArticleHandler(req: Request, res: Response): Promis
   }
 
   try {
-    const article = await updateKbArticleRecord(parsedParams.data.id, parsedBody.data);
+    const article = await updateKbArticleRecord(parsedParams.data.id, parsedBody.data, req.user);
     return res.json(article);
   } catch (err) {
     return handleKbError(err, res);
@@ -129,7 +129,7 @@ export async function deleteKbArticleHandler(req: Request, res: Response): Promi
   }
 
   try {
-    await deleteKbArticleRecord(parsedParams.data.id);
+    await deleteKbArticleRecord(parsedParams.data.id, req.user);
     return res.status(204).send();
   } catch (err) {
     return handleKbError(err, res);

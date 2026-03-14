@@ -33,7 +33,7 @@ export type CreateTicketInput = {
   title: string;
   description: string;
   priority: TicketPriority;
-  assignedTo?: string;
+  assignedTo?: string | null;
 };
 
 export type UpdateTicketInput = {

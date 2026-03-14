@@ -14,6 +14,7 @@ import {
   type LocalTicket,
   type UpdateTicketInput,
 } from '../domain/models';
+import { buildTicketUpdatePatch, hasTicketUpdateChanges } from '../domain/proxyPatch';
 import {
   loadTicketsByStrategy,
   readLocalState,
@@ -58,24 +59,32 @@ export const useTicketsStore = defineStore('tickets', () => {
 
     const authStore = useAuthStore();
     const syncStore = useSyncStore();
+    syncStore.refreshBrowserOnlineState();
+    const browserOnline = syncStore.browserOnline;
 
     loading.value = true;
     error.value = null;
 
     try {
-      const strategy: DataSourceStrategy = !syncStore.online
+      const strategy: DataSourceStrategy = !browserOnline
         ? 'idb_first'
-        : force
+        : force || !syncStore.apiReachable
           ? 'network_first'
           : 'cache_first';
 
       const result = await loadTicketsByStrategy({
         strategy,
-        online: syncStore.online,
+        online: browserOnline,
         accessToken: authStore.accessToken,
       });
 
       tickets.value = result.items;
+
+      if (result.source === 'network') {
+        syncStore.markApiReachable();
+      } else if (result.networkUnavailable) {
+        syncStore.markApiUnavailable();
+      }
 
       if (result.lastSyncAt) {
         syncStore.setLastSyncAt(result.lastSyncAt);
@@ -152,14 +161,22 @@ export const useTicketsStore = defineStore('tickets', () => {
     await refreshFromDb();
     await syncStore.refreshQueueFromDb();
 
-    if (syncStore.online) {
+    if (syncStore.refreshBrowserOnlineState() && syncStore.online) {
       void syncStore.flushQueue();
     }
   }
 
-  async function updateTicket(ticketId: string, patch: UpdateTicketInput) {
+  async function updateTicket(
+    ticketId: string,
+    candidatePatch: UpdateTicketInput,
+  ): Promise<boolean> {
     const current = await ticketsDb.tickets.get(ticketId);
-    if (!current) return;
+    if (!current) return false;
+
+    const patch = buildTicketUpdatePatch(current, candidatePatch);
+    if (!hasTicketUpdateChanges(patch)) {
+      return false;
+    }
 
     const timestamp = nowIso();
     const nextTicket: LocalTicket = {
@@ -212,9 +229,11 @@ export const useTicketsStore = defineStore('tickets', () => {
     await refreshFromDb();
     await syncStore.refreshQueueFromDb();
 
-    if (syncStore.online) {
+    if (syncStore.refreshBrowserOnlineState() && syncStore.online) {
       void syncStore.flushQueue();
     }
+
+    return true;
   }
 
   async function removeTicket(ticketId: string): Promise<RemoveTicketResult | undefined> {
@@ -283,7 +302,7 @@ export const useTicketsStore = defineStore('tickets', () => {
     await refreshFromDb();
     await syncStore.refreshQueueFromDb();
 
-    if (syncStore.online) {
+    if (syncStore.refreshBrowserOnlineState() && syncStore.online) {
       await syncStore.flushQueue();
 
       const persistedTicket = await ticketsDb.tickets.get(ticketId);

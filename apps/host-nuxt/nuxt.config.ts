@@ -1,3 +1,7 @@
+const isDev = process.env.NODE_ENV !== 'production';
+const devFavicon =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231976D2'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' font-family='Arial' font-size='34' fill='white'%3EO%3C/text%3E%3C/svg%3E";
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   ssr: true,
@@ -14,8 +18,10 @@ export default defineNuxtConfig({
         { name: 'theme-color', content: '#1976D2' },
       ],
       link: [
-        { rel: 'icon', type: 'image/png', href: '/pwa-64x64.png' },
-        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+        isDev
+          ? { rel: 'icon', type: 'image/svg+xml', href: devFavicon }
+          : { rel: 'icon', type: 'image/png', href: '/pwa-64x64.png' },
+        ...(isDev ? [] : [{ rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }]),
       ],
     },
   },

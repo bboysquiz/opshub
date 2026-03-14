@@ -13,6 +13,20 @@ export type AuthUser = {
   featureFlags: FeatureFlags;
 };
 
+export type SlaSettings = {
+  lowMinutes: number;
+  mediumMinutes: number;
+  highMinutes: number;
+  updatedAt: string;
+};
+
+export const defaultSlaSettings: SlaSettings = {
+  lowMinutes: 24 * 60,
+  mediumMinutes: 8 * 60,
+  highMinutes: 4 * 60,
+  updatedAt: '',
+};
+
 export const defaultFeatureFlags: FeatureFlags = {
   newTicketsTable: false,
 };

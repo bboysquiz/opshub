@@ -1,6 +1,12 @@
 import type { Role } from '../auth/types';
 import { listAnalyticsTickets } from './repository';
-import type { AnalyticsTeam, AnalyticsTicketDto, AnalyticsTicketRow } from './types';
+import { getSlaSettings } from '../sla/service';
+import type {
+  AnalyticsPayloadDto,
+  AnalyticsTeam,
+  AnalyticsTicketDto,
+  AnalyticsTicketRow,
+} from './types';
 
 function mapRoleToTeam(role: Role | null, hasAssignee: boolean): AnalyticsTeam {
   if (!hasAssignee) {
@@ -33,13 +39,17 @@ function mapTicket(row: AnalyticsTicketRow): AnalyticsTicketDto {
     assignedTo: row.assigned_to,
     assignedToEmail: row.assigned_to_email,
     assignedToRole: row.assigned_to_role,
-    // В текущей модели нет отдельного поля команды, поэтому для аналитики
-    // используем роль исполнителя как прокси-измерение команды.
+    // группируем тикеты по роли исполнителя.
     assignedTeam: mapRoleToTeam(row.assigned_to_role, Boolean(row.assigned_to)),
   };
 }
 
-export async function getAnalyticsTickets(): Promise<AnalyticsTicketDto[]> {
+export async function getAnalyticsTickets(): Promise<AnalyticsPayloadDto> {
   const rows = await listAnalyticsTickets();
-  return rows.map(mapTicket);
+  const slaSettings = await getSlaSettings();
+
+  return {
+    items: rows.map(mapTicket),
+    slaSettings,
+  };
 }

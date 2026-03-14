@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { isAuthError } from '../auth/errors';
 import { listAdminUsers, updateAdminUserAccess } from '../auth/service';
+import { getSlaSettings, updateSlaSettings } from '../sla/service';
 
 const userIdParamsSchema = z.object({
   id: z.string().uuid(),
@@ -20,6 +21,12 @@ const patchUserAccessSchema = z
   .refine((data) => data.role !== undefined || data.featureFlags !== undefined, {
     message: 'At least one field is required',
   });
+
+const patchSlaSettingsSchema = z.object({
+  lowMinutes: z.number().int().positive(),
+  mediumMinutes: z.number().int().positive(),
+  highMinutes: z.number().int().positive(),
+});
 
 function handleAdminError(err: unknown, res: Response): Response {
   if (isAuthError(err)) {
@@ -62,6 +69,29 @@ export async function patchAdminUserAccessHandler(req: Request, res: Response): 
     });
 
     return res.json(user);
+  } catch (err) {
+    return handleAdminError(err, res);
+  }
+}
+
+export async function getAdminSlaSettingsHandler(_req: Request, res: Response): Promise<Response> {
+  try {
+    const settings = await getSlaSettings();
+    return res.json(settings);
+  } catch (err) {
+    return handleAdminError(err, res);
+  }
+}
+
+export async function patchAdminSlaSettingsHandler(req: Request, res: Response): Promise<Response> {
+  const body = patchSlaSettingsSchema.safeParse(req.body);
+  if (!body.success) {
+    return res.status(400).json({ message: 'Invalid body' });
+  }
+
+  try {
+    const settings = await updateSlaSettings(body.data);
+    return res.json(settings);
   } catch (err) {
     return handleAdminError(err, res);
   }

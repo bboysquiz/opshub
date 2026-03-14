@@ -1,7 +1,13 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { analyticsApi } from '../api/analyticsApi';
-import type { AnalyticsFilters, AnalyticsTicket, TeamKind } from '../domain/models';
+import {
+  defaultSlaSettings,
+  type AnalyticsFilters,
+  type AnalyticsTicket,
+  type SlaSettings,
+  type TeamKind,
+} from '../domain/models';
 
 const DEFAULT_FILTERS: AnalyticsFilters = {
   dateFrom: '',
@@ -34,6 +40,7 @@ function normalizeErrorMessage(error: unknown): string {
 
 export const useAnalyticsStore = defineStore('analytics', () => {
   const tickets = ref<AnalyticsTicket[]>([]);
+  const slaSettings = ref<SlaSettings>({ ...defaultSlaSettings });
   const filters = ref<AnalyticsFilters>({ ...DEFAULT_FILTERS });
   const loading = ref(false);
   const error = ref<string | null>(null);
@@ -61,7 +68,9 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     }
 
     try {
-      tickets.value = await analyticsApi.listTickets();
+      const response = await analyticsApi.listTickets();
+      tickets.value = response.items;
+      slaSettings.value = response.slaSettings;
       lastLoadedAt.value = new Date().toISOString();
     } catch (loadError) {
       tickets.value = [];
@@ -91,6 +100,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
 
   return {
     tickets,
+    slaSettings,
     filters,
     loading,
     error,

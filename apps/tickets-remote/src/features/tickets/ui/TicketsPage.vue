@@ -21,7 +21,7 @@ import {
   useQuasar,
   type QTableColumn,
 } from 'quasar';
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useAuthStore } from '../../../stores/auth';
 import { usersApi, type AssignableUser } from '../api/usersApi';
 import { useSyncStore } from '../stores/sync';
@@ -62,17 +62,31 @@ const ticketsStore = useTicketsStore();
 const syncStore = useSyncStore();
 
 const { visibleTickets, loading, error } = storeToRefs(ticketsStore);
-const { conflictCount, queueSize, syncError, syncInProgress } = storeToRefs(syncStore);
+const {
+  conflictCount,
+  queueSize,
+  syncError,
+  syncInProgress,
+  syncProcessed,
+  syncRemaining,
+  syncTotal,
+} = storeToRefs(syncStore);
 
 const dialogOpen = ref(false);
 const detailsDialogOpen = ref(false);
 const viewingTicket = ref<LocalTicket | null>(null);
 const assignableUsers = ref<AssignableUser[]>([]);
 const createTicketButtonRef = ref<{ focus?: () => void; $el?: HTMLElement } | null>(null);
-const dialogTitleInputRef = ref<{ focus?: () => void; $el?: HTMLElement } | null>(null);
 const lastFocusedElement = ref<HTMLElement | null>(null);
 const updatedFromPopup = ref<{ hide?: () => void; show?: () => void } | null>(null);
 const updatedToPopup = ref<{ hide?: () => void; show?: () => void } | null>(null);
+const syncProgressVisible = ref(false);
+const displayedSyncPercent = ref(0);
+const displayedSyncProcessed = ref(0);
+const displayedSyncRemaining = ref(0);
+
+let syncProgressFrameId: number | null = null;
+let syncProgressHideTimerId: number | null = null;
 
 const filters = reactive({
   title: '',
@@ -302,6 +316,113 @@ const dialogTransition = computed(() => (reducedMotion.value ? 'fade' : 'scale')
 const canEditViewedTicket = computed(() =>
   viewingTicket.value ? canEditTicket(viewingTicket.value) : false,
 );
+const syncProgressTargetPercent = computed(() =>
+  syncTotal.value > 0 ? (syncProcessed.value / syncTotal.value) * 100 : 0,
+);
+const syncProgressPercent = computed(() => Math.max(0, Math.min(100, displayedSyncPercent.value)));
+const syncProgressProcessedLabel = computed(() =>
+  Math.max(0, Math.min(syncTotal.value, Math.round(displayedSyncProcessed.value))),
+);
+const syncProgressRemainingLabel = computed(() =>
+  Math.max(0, Math.round(displayedSyncRemaining.value)),
+);
+const syncProgressStateLabel = computed(() => {
+  if (syncInProgress.value) {
+    return 'Идёт синхронизация';
+  }
+
+  return syncError.value ? 'Синхронизация остановлена' : 'Синхронизация завершена';
+});
+
+function cancelSyncProgressFrame() {
+  if (syncProgressFrameId === null || typeof window === 'undefined') {
+    return;
+  }
+
+  window.cancelAnimationFrame(syncProgressFrameId);
+  syncProgressFrameId = null;
+}
+
+function clearSyncProgressHideTimer() {
+  if (syncProgressHideTimerId === null || typeof window === 'undefined') {
+    return;
+  }
+
+  window.clearTimeout(syncProgressHideTimerId);
+  syncProgressHideTimerId = null;
+}
+
+function setDisplayedSyncProgress(processed: number, remaining: number, percent: number) {
+  displayedSyncProcessed.value = processed;
+  displayedSyncRemaining.value = remaining;
+  displayedSyncPercent.value = percent;
+}
+
+function resetDisplayedSyncProgress() {
+  setDisplayedSyncProgress(0, 0, 0);
+}
+
+function scheduleSyncProgressHide() {
+  if (syncInProgress.value || syncProgressHideTimerId !== null) {
+    return;
+  }
+
+  if (typeof window === 'undefined') {
+    syncProgressVisible.value = false;
+    resetDisplayedSyncProgress();
+    return;
+  }
+
+  syncProgressHideTimerId = window.setTimeout(() => {
+    syncProgressVisible.value = false;
+    resetDisplayedSyncProgress();
+    syncProgressHideTimerId = null;
+  }, 480);
+}
+
+function animateSyncProgressToTarget() {
+  cancelSyncProgressFrame();
+
+  const targetPercent = syncProgressTargetPercent.value;
+  const targetProcessed = syncProcessed.value;
+  const targetRemaining = syncRemaining.value;
+
+  if (reducedMotion.value || typeof window === 'undefined') {
+    setDisplayedSyncProgress(targetProcessed, targetRemaining, targetPercent);
+
+    if (!syncInProgress.value) {
+      scheduleSyncProgressHide();
+    }
+
+    return;
+  }
+
+  const step = () => {
+    const percentDiff = targetPercent - displayedSyncPercent.value;
+    const processedDiff = targetProcessed - displayedSyncProcessed.value;
+    const remainingDiff = targetRemaining - displayedSyncRemaining.value;
+    const settled =
+      Math.abs(percentDiff) < 0.2 && Math.abs(processedDiff) < 0.2 && Math.abs(remainingDiff) < 0.2;
+
+    if (settled) {
+      setDisplayedSyncProgress(targetProcessed, targetRemaining, targetPercent);
+      syncProgressFrameId = null;
+
+      if (!syncInProgress.value) {
+        scheduleSyncProgressHide();
+      }
+
+      return;
+    }
+
+    displayedSyncPercent.value += percentDiff * 0.18;
+    displayedSyncProcessed.value += processedDiff * 0.24;
+    displayedSyncRemaining.value += remainingDiff * 0.24;
+    syncProgressFrameId = window.requestAnimationFrame(step);
+  };
+
+  syncProgressFrameId = window.requestAnimationFrame(step);
+}
 
 function parseDateTimeFilter(value: string, edge: 'start' | 'end' = 'start') {
   if (!value) {
@@ -351,6 +472,10 @@ function assigneeLabel(ticket: Pick<LocalTicket, 'assignedTo' | 'assignedToEmail
 
 function creatorLabel(ticket: Pick<LocalTicket, 'createdBy' | 'createdByEmail'>) {
   return ticket.createdByEmail ?? ticket.createdBy ?? 'Неизвестный пользователь';
+}
+
+function normalizeAssignedTo(value: string | null | undefined) {
+  return value && value.trim() ? value : null;
 }
 
 function isOwner(ticket: LocalTicket) {
@@ -477,7 +602,7 @@ async function submit() {
       title: form.title,
       description: form.description,
       priority: form.priority,
-      assignedTo: form.assignedTo,
+      assignedTo: normalizeAssignedTo(form.assignedTo),
     });
 
     notifySavedLocally('created');
@@ -515,10 +640,14 @@ async function submitViewedTicket() {
     }
 
     if (props.canUpdateTickets) {
-      patch.assignedTo = detailsForm.assignedTo;
+      patch.assignedTo = normalizeAssignedTo(detailsForm.assignedTo);
     }
 
-    await ticketsStore.updateTicket(viewingTicket.value.id, patch);
+    const updated = await ticketsStore.updateTicket(viewingTicket.value.id, patch);
+    if (!updated) {
+      return;
+    }
+
     notifySavedLocally('updated');
 
     const updatedTicket =
@@ -582,12 +711,51 @@ watch(conflictCount, (count, previous) => {
   }
 });
 
+watch(
+  syncInProgress,
+  (inProgress, wasInProgress) => {
+    if (inProgress && !wasInProgress) {
+      clearSyncProgressHideTimer();
+      cancelSyncProgressFrame();
+
+      if (syncTotal.value > 0) {
+        syncProgressVisible.value = true;
+        setDisplayedSyncProgress(0, syncTotal.value, 0);
+        animateSyncProgressToTarget();
+      }
+
+      return;
+    }
+
+    if (!inProgress && wasInProgress && syncProgressVisible.value) {
+      animateSyncProgressToTarget();
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  [syncTotal, syncProcessed, syncRemaining],
+  ([total]) => {
+    if (!total && !syncInProgress.value) {
+      clearSyncProgressHideTimer();
+      cancelSyncProgressFrame();
+      syncProgressVisible.value = false;
+      resetDisplayedSyncProgress();
+      return;
+    }
+
+    if (total > 0 && (syncInProgress.value || syncProgressVisible.value)) {
+      clearSyncProgressHideTimer();
+      syncProgressVisible.value = true;
+      animateSyncProgressToTarget();
+    }
+  },
+  { immediate: true },
+);
+
 watch(dialogOpen, async (isOpen) => {
-  if (isOpen) {
-    await nextTick();
-    focusComponent(dialogTitleInputRef.value);
-    return;
-  }
+  if (isOpen) return;
 
   await nextTick();
   if (lastFocusedElement.value) {
@@ -637,21 +805,45 @@ onMounted(async () => {
   await loadAssignableUsers();
   await ticketsStore.loadTickets();
 });
+
+onBeforeUnmount(() => {
+  cancelSyncProgressFrame();
+  clearSyncProgressHideTimer();
+});
 </script>
 
 <template>
   <section class="q-pa-md op-page" aria-labelledby="tickets-page-title">
     <OpPageHeader id="tickets-page-title" title="Тикеты">
       <template #actions>
-        <q-badge color="warning" class="q-px-sm q-py-xs" role="status">
+        <q-badge
+          color="warning"
+          class="q-px-sm q-py-xs"
+          :class="{
+            'tickets-page__status-badge--queue': !reducedMotion && queueSize > 0 && !syncInProgress,
+          }"
+          role="status"
+        >
           очередь {{ queueSize }}
         </q-badge>
 
-        <q-badge v-if="syncInProgress" color="info" class="q-px-sm q-py-xs" role="status">
+        <q-badge
+          v-if="syncInProgress"
+          color="info"
+          class="q-px-sm q-py-xs"
+          :class="{ 'tickets-page__status-badge--sync': !reducedMotion }"
+          role="status"
+        >
           идёт синхронизация
         </q-badge>
 
-        <q-badge v-if="conflictCount" color="negative" class="q-px-sm q-py-xs" role="status">
+        <q-badge
+          v-if="conflictCount"
+          color="negative"
+          class="q-px-sm q-py-xs"
+          :class="{ 'tickets-page__status-badge--conflict': !reducedMotion }"
+          role="status"
+        >
           конфликты {{ conflictCount }}
         </q-badge>
 
@@ -881,6 +1073,31 @@ onMounted(async () => {
         />
       </template>
     </OpPageHeader>
+
+    <div
+      v-if="syncProgressVisible"
+      class="tickets-page__sync-strip"
+      :class="{ 'tickets-page__sync-strip--active': !reducedMotion && syncInProgress }"
+      aria-live="polite"
+    >
+      <div class="tickets-page__sync-strip-head">
+        <div class="text-caption text-weight-medium">Синхронизация очереди</div>
+        <div class="text-caption">{{ syncProgressProcessedLabel }} / {{ syncTotal }}</div>
+      </div>
+
+      <div class="tickets-page__sync-track" aria-hidden="true">
+        <div
+          class="tickets-page__sync-bar"
+          :class="{ 'tickets-page__sync-bar--animated': !reducedMotion && syncInProgress }"
+          :style="{ transform: `scaleX(${syncProgressPercent / 100})` }"
+        />
+      </div>
+
+      <div class="tickets-page__sync-strip-meta text-caption text-grey-7">
+        <span>{{ syncProgressStateLabel }}</span>
+        <span>в очереди {{ syncProgressRemainingLabel }}</span>
+      </div>
+    </div>
 
     <TicketsErrorState
       v-if="error"
@@ -1125,8 +1342,8 @@ onMounted(async () => {
         <q-card-section class="q-pt-none">
           <q-form class="q-gutter-md" @submit.prevent="submit">
             <q-input
-              ref="dialogTitleInputRef"
               v-model="form.title"
+              v-focus-when="dialogOpen"
               outlined
               label="Заголовок"
               aria-label="Заголовок тикета"
@@ -1182,6 +1399,87 @@ onMounted(async () => {
   width: min(92vw, 68rem);
 }
 
+.tickets-page__sync-strip {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgb(191 219 254);
+  border-radius: 16px;
+  background: rgb(239 246 255);
+  transition:
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.tickets-page__status-badge--queue,
+.tickets-page__status-badge--sync,
+.tickets-page__status-badge--conflict {
+  will-change: transform, box-shadow;
+}
+
+.tickets-page__status-badge--queue {
+  animation: ticketsQueueGlow 2.8s ease-in-out infinite;
+}
+
+.tickets-page__status-badge--sync {
+  animation: ticketsSyncPulse 1.35s ease-in-out infinite;
+}
+
+.tickets-page__status-badge--conflict {
+  animation: ticketsConflictBeacon 1.8s ease-in-out infinite;
+}
+
+.tickets-page__sync-strip--active {
+  animation: ticketsSyncStripBreath 1.8s ease-in-out infinite;
+}
+
+.tickets-page__sync-strip-head,
+.tickets-page__sync-strip-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tickets-page__sync-track {
+  overflow: hidden;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: rgb(191 219 254);
+}
+
+.tickets-page__sync-bar {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  transform-origin: left center;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgb(37 99 235), rgb(59 130 246), rgb(96 165 250));
+  background-size: 200% 100%;
+  will-change: transform, background-position;
+}
+
+.tickets-page__sync-bar--animated {
+  animation: ticketsSyncBarShift 1.5s linear infinite;
+}
+
+.tickets-page__sync-bar--animated::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 8%,
+    rgb(255 255 255 / 0.12) 36%,
+    rgb(255 255 255 / 0.42) 50%,
+    rgb(255 255 255 / 0.12) 64%,
+    transparent 92%
+  );
+  transform: translateX(-100%);
+  animation: ticketsSyncShimmer 1.6s ease-in-out infinite;
+}
+
 .tickets-page__details-grid {
   display: grid;
   gap: 1rem;
@@ -1200,9 +1498,101 @@ onMounted(async () => {
   background: rgba(15, 85, 177, 0.04);
 }
 
+:deep(.body--dark) .tickets-page__sync-strip,
+:deep(.q-dark) .tickets-page__sync-strip {
+  border-color: rgb(30 64 175);
+  background: rgb(30 41 59);
+}
+
+:deep(.body--dark) .tickets-page__sync-track,
+:deep(.q-dark) .tickets-page__sync-track {
+  background: rgb(30 64 175 / 0.45);
+}
+
+@keyframes ticketsQueueGlow {
+  0%,
+  100% {
+    transform: translateY(0);
+    box-shadow: 0 0 0 rgb(245 158 11 / 0);
+  }
+
+  50% {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgb(245 158 11 / 0.24);
+  }
+}
+
+@keyframes ticketsSyncPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgb(59 130 246 / 0);
+  }
+
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 0 8px rgb(59 130 246 / 0.14);
+  }
+}
+
+@keyframes ticketsConflictBeacon {
+  0%,
+  100% {
+    transform: translateY(0);
+    box-shadow: 0 0 0 rgb(220 38 38 / 0);
+  }
+
+  35% {
+    transform: translateY(-1px);
+    box-shadow: 0 0 0 8px rgb(220 38 38 / 0.16);
+  }
+
+  65% {
+    transform: translateY(0);
+    box-shadow: 0 10px 20px rgb(220 38 38 / 0.16);
+  }
+}
+
+@keyframes ticketsSyncStripBreath {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgb(37 99 235 / 0);
+  }
+
+  50% {
+    box-shadow: 0 10px 26px rgb(37 99 235 / 0.12);
+  }
+}
+
+@keyframes ticketsSyncBarShift {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes ticketsSyncShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(125%);
+  }
+}
+
 @media (max-width: 599px) {
   .tickets-page__dialog {
     width: calc(100vw - 1.5rem);
+  }
+
+  .tickets-page__sync-strip-head,
+  .tickets-page__sync-strip-meta {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .tickets-page__details-grid {

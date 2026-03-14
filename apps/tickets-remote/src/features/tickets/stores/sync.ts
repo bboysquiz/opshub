@@ -4,6 +4,7 @@ import { onSyncEvent } from '../domain/events';
 import { flushPendingCommands, retryFailedCommands } from '../domain/syncEngine';
 import { readLocalState } from '../infra/dataSource';
 import { getMeta, setMeta } from '../infra/dexie';
+import { isBrowserOnline } from '../infra/network';
 import type { SyncCommand } from '../domain/commands';
 import { useAuthStore } from '../../../stores/auth';
 
@@ -12,11 +13,16 @@ export const useSyncStore = defineStore('tickets-sync', () => {
   const queue = ref<SyncCommand[]>([]);
   const syncError = ref<string | null>(null);
   const syncInProgress = ref(false);
+  const syncTotal = ref(0);
+  const syncProcessed = ref(0);
+  const syncRemaining = ref(0);
   const lastSyncAt = ref<string | null>(null);
   const lastAutoSyncAt = ref<string | null>(null);
   const lastFlushedCount = ref(0);
   const autoSyncActive = ref(false);
-  const online = ref(typeof navigator === 'undefined' ? true : navigator.onLine);
+  const browserOnline = ref(isBrowserOnline());
+  const apiReachable = ref(browserOnline.value);
+  const online = computed(() => browserOnline.value && apiReachable.value);
   let autoSyncIntervalId: number | null = null;
 
   const queueSize = computed(() => queue.value.length);
@@ -38,16 +44,46 @@ export const useSyncStore = defineStore('tickets-sync', () => {
     const { useTicketsStore } = await import('./tickets');
     const ticketsStore = useTicketsStore();
 
+    if (!online.value) {
+      return;
+    }
+
     void flushQueue();
     void ticketsStore.loadTickets(true);
   }
 
   function canAutoSync() {
     if (typeof document === 'undefined') {
-      return online.value;
+      return browserOnline.value;
     }
 
-    return online.value && document.visibilityState === 'visible';
+    return browserOnline.value && document.visibilityState === 'visible';
+  }
+
+  function refreshBrowserOnlineState() {
+    const nextBrowserOnline = isBrowserOnline();
+    browserOnline.value = nextBrowserOnline;
+
+    if (!nextBrowserOnline) {
+      apiReachable.value = false;
+      stopAutoSync();
+      return false;
+    }
+
+    return online.value;
+  }
+
+  function markApiReachable() {
+    if (!refreshBrowserOnlineState()) {
+      return false;
+    }
+
+    apiReachable.value = true;
+    return true;
+  }
+
+  function markApiUnavailable() {
+    apiReachable.value = false;
   }
 
   async function markAutoSyncRun() {
@@ -62,6 +98,7 @@ export const useSyncStore = defineStore('tickets-sync', () => {
     }
 
     await markAutoSyncRun();
+    markApiReachable();
     await flushQueue();
   }
 
@@ -102,18 +139,57 @@ export const useSyncStore = defineStore('tickets-sync', () => {
     syncError.value = (await getMeta('lastSyncError')) as string | null;
     lastFlushedCount.value = Number((await getMeta('lastFlushedCount')) ?? 0);
 
-    onSyncEvent('sync-started', () => {
+    onSyncEvent('sync-started', ({ total, processed, remaining }) => {
       syncInProgress.value = true;
+      syncTotal.value = total ?? 0;
+      syncProcessed.value = processed ?? 0;
+      syncRemaining.value = remaining ?? syncTotal.value;
     });
 
-    onSyncEvent('sync-finished', ({ flushed }) => {
+    onSyncEvent('sync-progress', ({ total, processed, remaining }) => {
+      if (typeof total === 'number') {
+        syncTotal.value = total;
+      }
+
+      if (typeof processed === 'number') {
+        syncProcessed.value = processed;
+      }
+
+      if (typeof remaining === 'number') {
+        syncRemaining.value = remaining;
+      }
+    });
+
+    onSyncEvent('sync-finished', ({ flushed, total, processed, remaining }) => {
       syncInProgress.value = false;
       lastFlushedCount.value = flushed ?? 0;
+
+      if (typeof total === 'number') {
+        syncTotal.value = total;
+      }
+
+      if (typeof processed === 'number') {
+        syncProcessed.value = processed;
+      }
+
+      syncRemaining.value = remaining ?? 0;
     });
 
-    onSyncEvent('sync-failed', ({ message }) => {
+    onSyncEvent('sync-failed', ({ message, total, processed, remaining }) => {
       syncInProgress.value = false;
       syncError.value = message ?? null;
+
+      if (typeof total === 'number') {
+        syncTotal.value = total;
+      }
+
+      if (typeof processed === 'number') {
+        syncProcessed.value = processed;
+      }
+
+      if (typeof remaining === 'number') {
+        syncRemaining.value = remaining;
+      }
     });
 
     onSyncEvent('queue-changed', () => {
@@ -122,14 +198,16 @@ export const useSyncStore = defineStore('tickets-sync', () => {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
-        online.value = true;
+        browserOnline.value = true;
+        apiReachable.value = true;
         void setMeta('lastOnlineAt', new Date().toISOString());
         startAutoSync();
         void handleReconnect();
       });
 
       window.addEventListener('offline', () => {
-        online.value = false;
+        browserOnline.value = false;
+        apiReachable.value = false;
         stopAutoSync();
       });
 
@@ -164,6 +242,7 @@ export const useSyncStore = defineStore('tickets-sync', () => {
 
   async function flushQueue() {
     await init();
+    refreshBrowserOnlineState();
 
     const authStore = useAuthStore();
     if (syncInProgress.value || !online.value || !authStore.accessToken) {
@@ -177,6 +256,12 @@ export const useSyncStore = defineStore('tickets-sync', () => {
       const result = await flushPendingCommands();
 
       syncError.value = result.syncError;
+
+      if (result.connectivityLost) {
+        markApiUnavailable();
+      } else {
+        markApiReachable();
+      }
 
       if (result.syncError) {
         await setMeta('lastSyncError', result.syncError);
@@ -213,7 +298,7 @@ export const useSyncStore = defineStore('tickets-sync', () => {
 
     await ticketsStore.refreshFromDb();
 
-    if (online.value) {
+    if (markApiReachable()) {
       startAutoSync();
       await flushQueue();
     }
@@ -225,12 +310,20 @@ export const useSyncStore = defineStore('tickets-sync', () => {
     conflictCount,
     syncError,
     syncInProgress,
+    syncTotal,
+    syncProcessed,
+    syncRemaining,
     lastSyncAt,
     lastAutoSyncAt,
     lastFlushedCount,
     autoSyncActive,
     online,
+    browserOnline,
+    apiReachable,
     init,
+    refreshBrowserOnlineState,
+    markApiReachable,
+    markApiUnavailable,
     setLastSyncAt,
     refreshQueueFromDb,
     flushQueue,

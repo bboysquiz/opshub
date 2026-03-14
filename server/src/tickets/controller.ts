@@ -36,7 +36,7 @@ export async function createTicketHandler(req: Request, res: Response): Promise<
   }
 
   try {
-    const ticket = await createTicketRecord(req.user.sub, parsed.data);
+    const ticket = await createTicketRecord(req.user, parsed.data);
     return res.status(201).json(ticket);
   } catch (err) {
     return handleTicketsError(err, res);

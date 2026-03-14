@@ -1,19 +1,28 @@
 <script setup lang="ts">
 import { navigateTo, useRoute } from '#imports';
+import { notifyWithPush } from '@opshub/shared-ui';
 import { useQuasar } from 'quasar';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useAuthStore } from '~/stores/auth';
 import {
+  defaultSlaSettings,
   featureFlagLabels,
   roleLabels,
   type AuthUser,
   type FeatureFlags,
+  type SlaSettings,
   type UserRole,
 } from '~/utils/access';
 
 type UserDraft = {
   role: UserRole;
   newTicketsTable: boolean;
+};
+
+type SlaDraft = {
+  lowMinutes: number;
+  mediumMinutes: number;
+  highMinutes: number;
 };
 
 const $q = useQuasar();
@@ -37,14 +46,22 @@ const submitting = ref(false);
 const userDrafts = ref<Record<string, UserDraft>>({});
 const rowSaving = ref<Record<string, boolean>>({});
 const rowErrors = ref<Record<string, string | null>>({});
+const slaDraft = reactive<SlaDraft>({
+  lowMinutes: defaultSlaSettings.lowMinutes,
+  mediumMinutes: defaultSlaSettings.mediumMinutes,
+  highMinutes: defaultSlaSettings.highMinutes,
+});
+const slaSaving = ref(false);
+const adminRefreshIntervalMs = 30_000;
+let adminRefreshTimer: ReturnType<typeof window.setInterval> | null = null;
 
 const userColumns = [
   { name: 'email', label: 'Email', field: 'email', align: 'left' as const },
   { name: 'role', label: 'Роль', field: 'role', align: 'left' as const },
   {
-    name: 'newTicketsTable',
-    label: featureFlagLabels.newTicketsTable,
-    field: 'newTicketsTable',
+    name: 'featureFlags',
+    label: 'Флаги функций',
+    field: 'featureFlags',
     align: 'left' as const,
   },
   { name: 'createdAt', label: 'Создан', field: 'createdAt', align: 'left' as const },
@@ -83,10 +100,27 @@ function draftFor(user: AuthUser): UserDraft {
   return userDrafts.value[user.id];
 }
 
-function hasChanges(user: AuthUser) {
-  const draft = draftFor(user);
+function isUserDraftDirty(user: AuthUser, draft: UserDraft) {
   return draft.role !== user.role || draft.newTicketsTable !== user.featureFlags.newTicketsTable;
 }
+
+function hasChanges(user: AuthUser) {
+  const draft = draftFor(user);
+  return isUserDraftDirty(user, draft);
+}
+
+function syncSlaDraft(value: SlaSettings) {
+  slaDraft.lowMinutes = value.lowMinutes;
+  slaDraft.mediumMinutes = value.mediumMinutes;
+  slaDraft.highMinutes = value.highMinutes;
+}
+
+const slaHasChanges = computed(
+  () =>
+    slaDraft.lowMinutes !== auth.slaSettings.lowMinutes ||
+    slaDraft.mediumMinutes !== auth.slaSettings.mediumMinutes ||
+    slaDraft.highMinutes !== auth.slaSettings.highMinutes,
+);
 
 async function handleAfterAuth() {
   authError.value = null;
@@ -160,9 +194,11 @@ async function saveUser(user: AuthUser) {
       } satisfies FeatureFlags,
     });
 
-    $q.notify({
+    notifyWithPush($q, {
       type: 'positive',
       message: `Права пользователя ${user.email} обновлены`,
+      pushTitle: 'Профиль и настройки',
+      pushTag: `profile-access-updated-${user.id}-${Date.now()}`,
     });
   } catch (error) {
     rowErrors.value[user.id] = error instanceof Error ? error.message : 'Не удалось сохранить';
@@ -177,17 +213,60 @@ async function handleLogout() {
   await navigateTo('/profile');
 }
 
+function hasRowSavingInProgress() {
+  return Object.values(rowSaving.value).some(Boolean);
+}
+
+async function refreshAdminSettings() {
+  if (!auth.canManageUsers) {
+    return;
+  }
+
+  if (!submitting.value && !hasRowSavingInProgress()) {
+    await auth.loadUsers().catch(() => undefined);
+  }
+
+  if (!submitting.value && !slaSaving.value && !slaHasChanges.value) {
+    await auth.loadSlaSettings().catch(() => undefined);
+  }
+}
+
+function handleWindowFocus() {
+  void refreshAdminSettings();
+}
+
+function handleVisibilityChange() {
+  if (typeof document === 'undefined' || document.visibilityState !== 'visible') {
+    return;
+  }
+
+  void refreshAdminSettings();
+}
+
 watch(
   users,
-  (items) => {
+  (items, previousItems) => {
+    const previousById = new Map((previousItems ?? []).map((user) => [user.id, user]));
+
     userDrafts.value = Object.fromEntries(
-      items.map((user) => [
-        user.id,
-        {
-          role: user.role,
-          newTicketsTable: user.featureFlags.newTicketsTable,
-        } satisfies UserDraft,
-      ]),
+      items.map((user) => {
+        const previousUser = previousById.get(user.id);
+        const existingDraft = userDrafts.value[user.id];
+        const shouldPreserveDraft =
+          Boolean(existingDraft) &&
+          Boolean(previousUser) &&
+          isUserDraftDirty(previousUser, existingDraft);
+
+        return [
+          user.id,
+          shouldPreserveDraft && existingDraft
+            ? existingDraft
+            : ({
+                role: user.role,
+                newTicketsTable: user.featureFlags.newTicketsTable,
+              } satisfies UserDraft),
+        ];
+      }),
     );
   },
   { immediate: true },
@@ -198,19 +277,101 @@ watch(
   async (role) => {
     if (role === 'admin') {
       await auth.loadUsers().catch(() => undefined);
+      await auth.loadSlaSettings().catch(() => undefined);
       return;
     }
 
     userDrafts.value = {};
+    syncSlaDraft(defaultSlaSettings);
   },
   { immediate: true },
+);
+
+watch(
+  () => auth.slaSettings,
+  (settings, previousSettings) => {
+    if (!previousSettings) {
+      syncSlaDraft(settings);
+      return;
+    }
+
+    const hasLocalSlaChanges =
+      slaDraft.lowMinutes !== previousSettings.lowMinutes ||
+      slaDraft.mediumMinutes !== previousSettings.mediumMinutes ||
+      slaDraft.highMinutes !== previousSettings.highMinutes;
+
+    if (hasLocalSlaChanges) {
+      return;
+    }
+
+    syncSlaDraft(settings);
+  },
+  { immediate: true, deep: true },
 );
 
 onMounted(async () => {
   if (!auth.bootstrapComplete) {
     await auth.bootstrapAuth();
   }
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    adminRefreshTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void refreshAdminSettings();
+      }
+    }, adminRefreshIntervalMs);
+  }
 });
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('focus', handleWindowFocus);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }
+
+  if (adminRefreshTimer) {
+    clearInterval(adminRefreshTimer);
+    adminRefreshTimer = null;
+  }
+});
+
+async function saveSlaSettings() {
+  if (
+    !Number.isInteger(slaDraft.lowMinutes) ||
+    !Number.isInteger(slaDraft.mediumMinutes) ||
+    !Number.isInteger(slaDraft.highMinutes) ||
+    slaDraft.lowMinutes <= 0 ||
+    slaDraft.mediumMinutes <= 0 ||
+    slaDraft.highMinutes <= 0
+  ) {
+    authError.value = 'SLA должен быть задан положительными целыми значениями в минутах';
+    return;
+  }
+
+  slaSaving.value = true;
+  authError.value = null;
+
+  try {
+    await auth.updateSlaSettings({
+      lowMinutes: slaDraft.lowMinutes,
+      mediumMinutes: slaDraft.mediumMinutes,
+      highMinutes: slaDraft.highMinutes,
+    });
+
+    notifyWithPush($q, {
+      type: 'positive',
+      message: 'SLA-настройки обновлены',
+      pushTitle: 'Профиль и настройки',
+      pushTag: `profile-sla-updated-${Date.now()}`,
+    });
+  } catch (error) {
+    authError.value = error instanceof Error ? error.message : 'Не удалось сохранить SLA';
+  } finally {
+    slaSaving.value = false;
+  }
+}
 </script>
 
 <template>
@@ -354,17 +515,6 @@ onMounted(async () => {
                   Дата регистрации:
                   {{ auth.currentUser ? formatDateTime(auth.currentUser.createdAt) : 'неизвестно' }}
                 </div>
-
-                <div class="text-subtitle2 q-mt-md q-mb-sm">Feature flags</div>
-                <div class="row q-gutter-sm">
-                  <q-badge
-                    :color="auth.featureFlags.newTicketsTable ? 'positive' : 'grey-7'"
-                    class="q-px-sm q-py-xs"
-                  >
-                    {{ featureFlagLabels.newTicketsTable }}:
-                    {{ auth.featureFlags.newTicketsTable ? 'включена' : 'выключена' }}
-                  </q-badge>
-                </div>
               </q-card-section>
             </q-card>
           </div>
@@ -398,18 +548,10 @@ onMounted(async () => {
             <div>
               <div class="text-h6">Настройки доступа</div>
               <div class="text-caption text-grey-7">
-                Только администратор видит этот экран и может менять роли и feature flags.
+                Только администратор видит этот экран и может менять роли и флаги функций.
+                Обновление списка идёт автоматически, когда страница активна.
               </div>
             </div>
-            <q-space />
-            <q-btn
-              flat
-              color="primary"
-              icon="refresh"
-              label="Обновить"
-              :loading="auth.usersLoading"
-              @click="auth.loadUsers()"
-            />
           </q-card-section>
 
           <q-banner v-if="auth.usersError" rounded class="bg-red-1 text-red-9 q-mx-md q-mb-md">
@@ -437,9 +579,26 @@ onMounted(async () => {
               </q-td>
             </template>
 
-            <template #body-cell-newTicketsTable="props">
+            <template #body-cell-featureFlags="props">
               <q-td :props="props">
-                <q-toggle v-model="draftFor(props.row).newTicketsTable" color="primary" />
+                <q-btn flat dense color="primary" icon="tune" label="Управлять">
+                  <q-menu anchor="bottom right" self="top right">
+                    <q-list dense style="min-width: 18rem">
+                      <q-item-label header> Флаги функций </q-item-label>
+                      <q-item tag="label">
+                        <q-item-section>
+                          <q-item-label>{{ featureFlagLabels.newTicketsTable }}</q-item-label>
+                          <q-item-label caption>
+                            Включает альтернативный режим таблицы тикетов для этого пользователя.
+                          </q-item-label>
+                        </q-item-section>
+                        <q-item-section side>
+                          <q-toggle v-model="draftFor(props.row).newTicketsTable" color="primary" />
+                        </q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-menu>
+                </q-btn>
               </q-td>
             </template>
 
@@ -468,6 +627,66 @@ onMounted(async () => {
               </q-td>
             </template>
           </q-table>
+        </q-card>
+
+        <q-card v-if="auth.canManageUsers" flat bordered>
+          <q-card-section class="row items-center">
+            <div>
+              <div class="text-h6">SLA-настройки</div>
+              <div class="text-caption text-grey-7">
+                Эти значения используются аналитикой для определения нарушений SLA по приоритету.
+                При активной странице данные подтягиваются автоматически.
+              </div>
+            </div>
+          </q-card-section>
+
+          <q-banner v-if="auth.slaError" rounded class="bg-red-1 text-red-9 q-mx-md q-mb-md">
+            {{ auth.slaError }}
+          </q-banner>
+
+          <q-card-section>
+            <div class="row q-col-gutter-md">
+              <div class="col-12 col-md-4">
+                <q-input
+                  v-model.number="slaDraft.highMinutes"
+                  outlined
+                  type="number"
+                  min="1"
+                  label="Высокий приоритет, минут"
+                />
+              </div>
+
+              <div class="col-12 col-md-4">
+                <q-input
+                  v-model.number="slaDraft.mediumMinutes"
+                  outlined
+                  type="number"
+                  min="1"
+                  label="Средний приоритет, минут"
+                />
+              </div>
+
+              <div class="col-12 col-md-4">
+                <q-input
+                  v-model.number="slaDraft.lowMinutes"
+                  outlined
+                  type="number"
+                  min="1"
+                  label="Низкий приоритет, минут"
+                />
+              </div>
+            </div>
+
+            <div class="row justify-end q-mt-md">
+              <q-btn
+                color="primary"
+                label="Сохранить SLA"
+                :disable="!slaHasChanges"
+                :loading="slaSaving"
+                @click="saveSlaSettings"
+              />
+            </div>
+          </q-card-section>
         </q-card>
       </template>
     </div>

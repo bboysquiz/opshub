@@ -1,5 +1,6 @@
 import { ticketsApi } from '../api/ticketsApi';
 import { resetTicketsMemoryCache } from '../infra/dataSource';
+import { isNetworkLikeError } from '../infra/network';
 import { removeMeta, setMeta, ticketsDb } from '../infra/dexie';
 import {
   mergeCreatePayload,
@@ -54,6 +55,26 @@ async function markConflict(command: SyncCommand, message: string) {
     syncStatus: 'conflict',
     conflict: true,
     lastError: message,
+  });
+}
+
+async function markQueued(command: SyncCommand) {
+  await ticketsDb.queue.put({
+    ...command,
+    status: 'pending',
+    lastError: null,
+    updatedAt: nowIso(),
+  });
+  await emitQueueChanged();
+
+  const localTicket = await ticketsDb.tickets.get(command.ticketId);
+  if (!localTicket) return;
+
+  await ticketsDb.tickets.put({
+    ...localTicket,
+    syncStatus: 'queued',
+    conflict: false,
+    lastError: null,
   });
 }
 
@@ -155,19 +176,24 @@ async function processDelete(command: DeleteTicketCommand) {
 export async function flushPendingCommands() {
   let syncError: string | null = null;
   let flushed = 0;
+  let connectivityLost = false;
+  let processed = 0;
 
-  emitSyncEvent('sync-started');
+  const commands = sortCommands(await ticketsDb.queue.toArray()).filter(
+    (command) => command.status !== 'conflict',
+  );
+  const total = commands.length;
+
+  emitSyncEvent('sync-started', {
+    total,
+    processed: 0,
+    remaining: total,
+  });
   await setMeta('syncStartedAt', nowIso());
   await removeMeta('lastSyncError');
 
   try {
-    const commands = sortCommands(await ticketsDb.queue.toArray());
-
     for (const command of commands) {
-      if (command.status === 'conflict') {
-        continue;
-      }
-
       const processingCommand: SyncCommand = {
         ...command,
         tries: (command.tries ?? 0) + 1,
@@ -195,17 +221,59 @@ export async function flushPendingCommands() {
         }
       } catch (processError) {
         syncError = toErrorMessage(processError);
+
+        if (isNetworkLikeError(processError)) {
+          connectivityLost = true;
+          await markQueued(processingCommand);
+          processed += 1;
+          emitSyncEvent('sync-progress', {
+            total,
+            processed,
+            remaining: Math.max(total - processed, 0),
+          });
+          break;
+        }
+
         await markFailed(processingCommand, syncError);
       }
+
+      processed += 1;
+      emitSyncEvent('sync-progress', {
+        total,
+        processed,
+        remaining: Math.max(total - processed, 0),
+      });
     }
 
     resetTicketsMemoryCache();
 
+    await setMeta('lastFlushedCount', flushed);
+
+    if (connectivityLost) {
+      emitSyncEvent('sync-failed', {
+        message: syncError ?? undefined,
+        total,
+        processed,
+        remaining: Math.max(total - processed, 0),
+      });
+      await setMeta('lastSyncError', syncError);
+
+      return {
+        lastSyncAt: null,
+        syncError,
+        connectivityLost,
+      };
+    }
+
     const lastSyncAt = nowIso();
-    emitSyncEvent('sync-finished', { flushed });
+    emitSyncEvent('sync-finished', {
+      flushed,
+      total,
+      processed,
+      remaining: Math.max(total - processed, 0),
+    });
 
     await setMeta('lastSyncAt', lastSyncAt);
-    await setMeta('lastFlushedCount', flushed);
 
     if (syncError) {
       await setMeta('lastSyncError', syncError);
@@ -216,6 +284,7 @@ export async function flushPendingCommands() {
     return {
       lastSyncAt,
       syncError,
+      connectivityLost,
     };
   } catch (flushError) {
     syncError = toErrorMessage(flushError);
@@ -225,6 +294,7 @@ export async function flushPendingCommands() {
     return {
       lastSyncAt: null,
       syncError,
+      connectivityLost: isNetworkLikeError(flushError),
     };
   }
 }

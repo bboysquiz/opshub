@@ -1,9 +1,17 @@
-export type SyncEventName = 'sync-started' | 'sync-finished' | 'sync-failed' | 'queue-changed';
+export type SyncEventName =
+  | 'sync-started'
+  | 'sync-progress'
+  | 'sync-finished'
+  | 'sync-failed'
+  | 'queue-changed';
 
 export type SyncEventDetail = {
   message?: string;
   flushed?: number;
   size?: number;
+  total?: number;
+  processed?: number;
+  remaining?: number;
 };
 
 const target = new EventTarget();

@@ -1,3 +1,4 @@
+import { notifyWithPush } from '@opshub/shared-ui';
 import { useQuasar } from 'quasar';
 
 function toMessage(error: unknown, fallback: string) {
@@ -8,40 +9,50 @@ export function useTicketsNotify() {
   const $q = useQuasar();
 
   function notifySavedLocally(action: 'created' | 'updated') {
-    $q.notify({
+    notifyWithPush($q, {
       type: 'positive',
       message:
         action === 'created' ? 'Тикет добавлен в локальную очередь' : 'Тикет локально обновлён',
+      pushTitle: 'Тикеты',
+      pushTag: `tickets-local-${action}-${Date.now()}`,
     });
   }
 
   function notifyTicketRemoved(result: 'local' | 'queued' | 'deleted') {
     if (result === 'deleted') {
-      $q.notify({
+      notifyWithPush($q, {
         type: 'positive',
         message: 'Тикет удалён',
+        pushTitle: 'Тикеты',
+        pushTag: `tickets-deleted-${Date.now()}`,
       });
       return;
     }
 
     if (result === 'queued') {
-      $q.notify({
+      notifyWithPush($q, {
         type: 'warning',
         message: 'Тикет поставлен в очередь на удаление',
+        pushTitle: 'Тикеты',
+        pushTag: `tickets-delete-queued-${Date.now()}`,
       });
       return;
     }
 
-    $q.notify({
+    notifyWithPush($q, {
       type: 'warning',
       message: 'Локальный черновик удалён',
+      pushTitle: 'Тикеты',
+      pushTag: `tickets-local-removed-${Date.now()}`,
     });
   }
 
   function notifySaveFailed(error: unknown) {
-    $q.notify({
+    notifyWithPush($q, {
       type: 'negative',
       message: toMessage(error, 'Не удалось сохранить изменения'),
+      pushTitle: 'Тикеты',
+      pushTag: `tickets-save-failed-${Date.now()}`,
     });
   }
 
@@ -50,16 +61,20 @@ export function useTicketsNotify() {
       return;
     }
 
-    $q.notify({
+    notifyWithPush($q, {
       type: 'negative',
       message,
+      pushTitle: 'Тикеты',
+      pushTag: `tickets-sync-failed-${Date.now()}`,
     });
   }
 
   function notifyConflictDetected() {
-    $q.notify({
+    notifyWithPush($q, {
       type: 'warning',
       message: 'Обнаружен конфликт синхронизации. Открой диагностику, чтобы разобраться.',
+      pushTitle: 'Тикеты',
+      pushTag: `tickets-conflict-${Date.now()}`,
     });
   }
 

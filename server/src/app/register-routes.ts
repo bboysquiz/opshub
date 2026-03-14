@@ -1,3 +1,4 @@
+import { activityRouter } from '../activity/routes';
 import { adminRouter } from '../admin/routes';
 import { analyticsRouter } from '../analytics/routes';
 import type { Express } from 'express';
@@ -12,6 +13,7 @@ import { usersRouter } from '../users/routes';
 export function registerRoutes(app: Express): void {
   app.use(authRouter);
   app.use(adminRouter);
+  app.use(activityRouter);
   app.use(healthRouter);
   app.use(csrfRouter);
   app.use(analyticsRouter);

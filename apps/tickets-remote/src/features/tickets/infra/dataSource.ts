@@ -8,6 +8,7 @@ import {
   type LocalTicket,
   type TicketDto,
 } from '../domain/models';
+import { isNetworkLikeError } from './network';
 import { ticketsDb, setMeta } from './dexie';
 
 const MEMORY_TTL_MS = 15_000;
@@ -111,7 +112,12 @@ export async function loadTicketsByStrategy({
   strategy: DataSourceStrategy;
   online: boolean;
   accessToken: string;
-}): Promise<{ items: LocalTicket[]; source: DataSourceReadSource; lastSyncAt: string | null }> {
+}): Promise<{
+  items: LocalTicket[];
+  source: DataSourceReadSource;
+  lastSyncAt: string | null;
+  networkUnavailable: boolean;
+}> {
   if (strategy === 'cache_first') {
     const memoryItems = readFromMemory();
     if (memoryItems) {
@@ -120,6 +126,7 @@ export async function loadTicketsByStrategy({
         items: memoryItems,
         source: 'memory',
         lastSyncAt: null,
+        networkUnavailable: false,
       };
     }
 
@@ -131,14 +138,16 @@ export async function loadTicketsByStrategy({
           items: networkItems,
           source: 'network',
           lastSyncAt: nowIso(),
+          networkUnavailable: false,
         };
-      } catch {
+      } catch (error) {
         const idbItems = await readFromIdb();
         await setReadDiagnostics(strategy, 'idb');
         return {
           items: idbItems,
           source: 'idb',
           lastSyncAt: null,
+          networkUnavailable: isNetworkLikeError(error),
         };
       }
     }
@@ -149,6 +158,7 @@ export async function loadTicketsByStrategy({
       items: idbItems,
       source: 'idb',
       lastSyncAt: null,
+      networkUnavailable: false,
     };
   }
 
@@ -167,6 +177,7 @@ export async function loadTicketsByStrategy({
         items: idbItems,
         source: 'idb',
         lastSyncAt: null,
+        networkUnavailable: false,
       };
     }
 
@@ -177,6 +188,7 @@ export async function loadTicketsByStrategy({
         items: networkItems,
         source: 'network',
         lastSyncAt: nowIso(),
+        networkUnavailable: false,
       };
     }
 
@@ -185,6 +197,7 @@ export async function loadTicketsByStrategy({
       items: [],
       source: 'idb',
       lastSyncAt: null,
+      networkUnavailable: false,
     };
   }
 
@@ -199,8 +212,9 @@ export async function loadTicketsByStrategy({
       items: networkItems,
       source: 'network',
       lastSyncAt: nowIso(),
+      networkUnavailable: false,
     };
-  } catch {
+  } catch (error) {
     const idbItems = await readFromIdb();
     setMemory(idbItems);
     await setReadDiagnostics(strategy, 'idb');
@@ -208,6 +222,7 @@ export async function loadTicketsByStrategy({
       items: idbItems,
       source: 'idb',
       lastSyncAt: null,
+      networkUnavailable: isNetworkLikeError(error),
     };
   }
 }

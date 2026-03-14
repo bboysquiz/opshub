@@ -1,4 +1,5 @@
 import type { Role } from '../auth/types';
+import type { SlaSettingsDto } from '../sla/types';
 import type { TicketPriority, TicketStatus } from '../tickets/types';
 
 export type AnalyticsTeam = 'operations' | 'support' | 'requesters' | 'unassigned';
@@ -34,4 +35,9 @@ export type AnalyticsTicketDto = {
   assignedToEmail: string | null;
   assignedToRole: Role | null;
   assignedTeam: AnalyticsTeam;
+};
+
+export type AnalyticsPayloadDto = {
+  items: AnalyticsTicketDto[];
+  slaSettings: SlaSettingsDto;
 };

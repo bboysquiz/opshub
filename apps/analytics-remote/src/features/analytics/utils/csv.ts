@@ -10,7 +10,7 @@ export function downloadAnalyticsCsv(rows: AnalyticsTicketViewModel[]) {
     'ID',
     'Заголовок',
     'Статус',
-    'Команда',
+    'Роль исполнителя',
     'Приоритет',
     'Исполнитель',
     'Создан',

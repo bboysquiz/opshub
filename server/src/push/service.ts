@@ -103,6 +103,51 @@ async function sendToTargets(
   return { delivered, failed, removed };
 }
 
+function uniqueUserIds(
+  values: Array<string | null | undefined>,
+  excluded: Array<string | null | undefined> = [],
+) {
+  const excludedSet = new Set(excluded.filter((value): value is string => Boolean(value)));
+  const ids = new Set<string>();
+
+  for (const value of values) {
+    if (!value || excludedSet.has(value)) {
+      continue;
+    }
+
+    ids.add(value);
+  }
+
+  return [...ids];
+}
+
+async function notifyRecipients(args: {
+  recipientIds: Array<string | null | undefined>;
+  excludedUserIds?: Array<string | null | undefined>;
+  title: string;
+  body: string;
+  ticketId: string;
+  tagPrefix: string;
+}) {
+  const recipientIds = uniqueUserIds(args.recipientIds, args.excludedUserIds);
+  const targets = await listDeliveryTargetsByUserIds(recipientIds);
+
+  if (!targets.length) {
+    return {
+      delivered: 0,
+      failed: 0,
+      removed: 0,
+    };
+  }
+
+  return sendToTargets(targets, {
+    title: args.title,
+    body: args.body,
+    url: '/tickets',
+    tag: `${args.tagPrefix}-${args.ticketId}-${Date.now()}`,
+  });
+}
+
 export async function getPushConfig(userId: string) {
   return {
     supported: true,
@@ -157,24 +202,72 @@ export async function sendTestPush(
 }
 
 export async function notifyTicketAssigned(args: {
+  actorId?: string | null;
+  creatorId?: string | null;
   userId: string;
   title: string;
   ticketId: string;
 }) {
-  const targets = await listDeliveryTargetsByUserIds([args.userId]);
-
-  if (!targets.length) {
-    return {
-      delivered: 0,
-      failed: 0,
-      removed: 0,
-    };
-  }
-
-  return sendToTargets(targets, {
+  return notifyRecipients({
+    recipientIds: [args.userId, args.creatorId],
+    excludedUserIds: [args.actorId],
     title: 'Вам назначили тикет',
     body: `Назначена задача: ${args.title}`,
-    url: '/tickets',
-    tag: `ticket-assigned-${args.ticketId}`.slice(0, 32),
+    ticketId: args.ticketId,
+    tagPrefix: 'ticket-assigned',
+  });
+}
+
+export async function notifyTicketStatusChanged(args: {
+  actorId: string;
+  creatorId?: string | null;
+  assigneeId?: string | null;
+  previousAssigneeId?: string | null;
+  title: string;
+  ticketId: string;
+  statusLabel: string;
+}) {
+  return notifyRecipients({
+    recipientIds: [args.creatorId, args.assigneeId, args.previousAssigneeId],
+    excludedUserIds: [args.actorId],
+    title: 'Статус тикета изменён',
+    body: `Статус «${args.title}» изменён на «${args.statusLabel}»`,
+    ticketId: args.ticketId,
+    tagPrefix: 'ticket-status',
+  });
+}
+
+export async function notifyTicketUpdated(args: {
+  actorId: string;
+  creatorId?: string | null;
+  assigneeId?: string | null;
+  previousAssigneeId?: string | null;
+  title: string;
+  ticketId: string;
+}) {
+  return notifyRecipients({
+    recipientIds: [args.creatorId, args.assigneeId, args.previousAssigneeId],
+    excludedUserIds: [args.actorId],
+    title: 'Тикет обновлён',
+    body: `Изменена задача: ${args.title}`,
+    ticketId: args.ticketId,
+    tagPrefix: 'ticket-updated',
+  });
+}
+
+export async function notifyTicketDeleted(args: {
+  actorId: string;
+  creatorId?: string | null;
+  assigneeId?: string | null;
+  title: string;
+  ticketId: string;
+}) {
+  return notifyRecipients({
+    recipientIds: [args.creatorId, args.assigneeId],
+    excludedUserIds: [args.actorId],
+    title: 'Тикет удалён',
+    body: `Тикет «${args.title}» был удалён`,
+    ticketId: args.ticketId,
+    tagPrefix: 'ticket-deleted',
   });
 }

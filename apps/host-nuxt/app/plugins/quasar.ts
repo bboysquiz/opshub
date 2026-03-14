@@ -1,4 +1,5 @@
 import { watch } from 'vue';
+import { installSharedUiDirectives } from '@opshub/shared-ui';
 import { useUiStore } from '~/stores/ui';
 import { Dark, installQuasar } from '~/utils/quasar';
 
@@ -14,19 +15,20 @@ export default defineNuxtPlugin((nuxtApp) => {
         }
       : undefined,
   );
+  installSharedUiDirectives(nuxtApp.vueApp);
 
   if (import.meta.client) {
-    nuxtApp.hook('app:mounted', () => {
-      const ui = useUiStore();
-      Dark.set(ui.darkMode);
+    const ui = useUiStore();
+    ui.hydrateThemePreference();
+    Dark.set(ui.darkMode);
 
-      watch(
-        () => ui.darkMode,
-        (isDark) => {
-          Dark.set(isDark);
-        },
-        { immediate: true },
-      );
-    });
+    watch(
+      () => ui.darkMode,
+      (isDark) => {
+        Dark.set(isDark);
+        ui.persistThemePreference(isDark);
+      },
+      { immediate: true },
+    );
   }
 });

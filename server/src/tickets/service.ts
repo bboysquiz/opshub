@@ -1,5 +1,17 @@
+import {
+  logTicketAssignedActivity,
+  logTicketCreatedActivity,
+  logTicketDeletedActivity,
+  logTicketStatusChangedActivity,
+  logTicketUpdatedActivity,
+} from '../activity/service';
 import type { AccessPayload } from '../auth/types';
-import { notifyTicketAssigned } from '../push/service';
+import {
+  notifyTicketAssigned,
+  notifyTicketDeleted,
+  notifyTicketStatusChanged,
+  notifyTicketUpdated,
+} from '../push/service';
 import {
   createTicket,
   deleteTicketById,
@@ -8,7 +20,19 @@ import {
   updateTicketById,
 } from './repository';
 import { TicketsError } from './errors';
-import type { CreateTicketInput, TicketDto, TicketRow, UpdateTicketInput } from './types';
+import type {
+  CreateTicketInput,
+  TicketDto,
+  TicketRow,
+  TicketStatus,
+  UpdateTicketInput,
+} from './types';
+
+const ticketStatusLabels: Record<TicketStatus, string> = {
+  open: 'Открыт',
+  in_progress: 'В работе',
+  resolved: 'Решён',
+};
 
 function mapTicket(row: TicketRow): TicketDto {
   return {
@@ -36,16 +60,37 @@ export async function getTickets(): Promise<TicketDto[]> {
 }
 
 export async function createTicketRecord(
-  createdBy: string,
+  actor: AccessPayload,
   payload: CreateTicketInput,
 ): Promise<TicketDto> {
   try {
-    const row = await createTicket({ ...payload, createdBy });
+    const row = await createTicket({ ...payload, createdBy: actor.sub });
+    await logTicketCreatedActivity({
+      actorId: actor.sub,
+      actorEmail: actor.email,
+      ticketId: row.id,
+      ticketTitle: row.title,
+    }).catch((error) => {
+      console.error('Failed to write ticket_created activity event', error);
+    });
+
     if (row.assigned_to) {
       void notifyTicketAssigned({
+        actorId: actor.sub,
+        creatorId: row.created_by,
         userId: row.assigned_to,
         title: row.title,
         ticketId: row.id,
+      });
+
+      await logTicketAssignedActivity({
+        actorId: actor.sub,
+        actorEmail: actor.email,
+        ticketId: row.id,
+        ticketTitle: row.title,
+        assigneeEmail: row.assigned_to_email,
+      }).catch((error) => {
+        console.error('Failed to write ticket_assigned activity event', error);
       });
     }
 
@@ -98,9 +143,59 @@ export async function updateTicketRecord(
       throw new TicketsError(404, 'Ticket not found');
     }
 
-    if (row.assigned_to && row.assigned_to !== previous.assigned_to) {
+    if (patch.status !== undefined && patch.status !== previous.status) {
+      await logTicketStatusChangedActivity({
+        actorId: actor.sub,
+        actorEmail: actor.email,
+        ticketId: row.id,
+        ticketTitle: row.title,
+        statusLabel: ticketStatusLabels[row.status],
+      }).catch((error) => {
+        console.error('Failed to write ticket_status_changed activity event', error);
+      });
+
+      void notifyTicketStatusChanged({
+        actorId: actor.sub,
+        creatorId: row.created_by,
+        assigneeId: row.assigned_to,
+        previousAssigneeId: previous.assigned_to,
+        title: row.title,
+        ticketId: row.id,
+        statusLabel: ticketStatusLabels[row.status],
+      });
+    } else if (row.assigned_to && row.assigned_to !== previous.assigned_to) {
+      await logTicketAssignedActivity({
+        actorId: actor.sub,
+        actorEmail: actor.email,
+        ticketId: row.id,
+        ticketTitle: row.title,
+        assigneeEmail: row.assigned_to_email,
+      }).catch((error) => {
+        console.error('Failed to write ticket_assigned activity event', error);
+      });
+
       void notifyTicketAssigned({
+        actorId: actor.sub,
+        creatorId: row.created_by,
         userId: row.assigned_to,
+        title: row.title,
+        ticketId: row.id,
+      });
+    } else {
+      await logTicketUpdatedActivity({
+        actorId: actor.sub,
+        actorEmail: actor.email,
+        ticketId: row.id,
+        ticketTitle: row.title,
+      }).catch((error) => {
+        console.error('Failed to write ticket_updated activity event', error);
+      });
+
+      void notifyTicketUpdated({
+        actorId: actor.sub,
+        creatorId: row.created_by,
+        assigneeId: row.assigned_to,
+        previousAssigneeId: previous.assigned_to,
         title: row.title,
         ticketId: row.id,
       });
@@ -129,4 +224,21 @@ export async function deleteTicketRecord(id: string, actor: AccessPayload): Prom
   if (!deleted) {
     throw new TicketsError(404, 'Ticket not found');
   }
+
+  await logTicketDeletedActivity({
+    actorId: actor.sub,
+    actorEmail: actor.email,
+    ticketId: existing.id,
+    ticketTitle: existing.title,
+  }).catch((error) => {
+    console.error('Failed to write ticket_deleted activity event', error);
+  });
+
+  void notifyTicketDeleted({
+    actorId: actor.sub,
+    creatorId: existing.created_by,
+    assigneeId: existing.assigned_to,
+    title: existing.title,
+    ticketId: existing.id,
+  });
 }

@@ -5,16 +5,10 @@ import type {
   AnalyticsSnapshot,
   AnalyticsTicket,
   AnalyticsTicketViewModel,
+  SlaSettings,
   TeamKind,
-  TicketPriority,
 } from '../domain/models';
 import { formatShortDate, statusLabels, teamLabels } from '../utils/labels';
-
-const SLA_TARGET_MINUTES: Record<TicketPriority, number> = {
-  low: 24 * 60,
-  medium: 8 * 60,
-  high: 4 * 60,
-};
 
 const STATUS_ORDER = ['open', 'in_progress', 'resolved'] as const;
 const TEAM_ORDER: TeamKind[] = ['support', 'operations', 'requesters', 'unassigned'];
@@ -134,6 +128,7 @@ function groupBySla(rows: AnalyticsTicketViewModel[]): AnalyticsBucket[] {
 function buildTableRows(
   tickets: AnalyticsTicket[],
   filters: AnalyticsFilters,
+  slaSettings: SlaSettings,
 ): AnalyticsTicketViewModel[] {
   const now = Date.now();
 
@@ -141,7 +136,12 @@ function buildTableRows(
     .filter((ticket) => matchesFilters(ticket, filters))
     .map((ticket) => {
       const responseMinutes = computeResponseMinutes(ticket, now);
-      const slaTargetMinutes = SLA_TARGET_MINUTES[ticket.priority];
+      const slaTargetMinutes =
+        ticket.priority === 'high'
+          ? slaSettings.highMinutes
+          : ticket.priority === 'medium'
+            ? slaSettings.mediumMinutes
+            : slaSettings.lowMinutes;
 
       return {
         ...ticket,
@@ -153,8 +153,12 @@ function buildTableRows(
     .sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt));
 }
 
-function buildSnapshot(tickets: AnalyticsTicket[], filters: AnalyticsFilters): AnalyticsSnapshot {
-  const tableRows = buildTableRows(tickets, filters);
+function buildSnapshot(
+  tickets: AnalyticsTicket[],
+  filters: AnalyticsFilters,
+  slaSettings: SlaSettings,
+): AnalyticsSnapshot {
+  const tableRows = buildTableRows(tickets, filters, slaSettings);
   const resolvedCount = tableRows.filter((row) => row.status === 'resolved').length;
   const activeCount = tableRows.filter((row) => row.status !== 'resolved').length;
   const breachedCount = tableRows.filter((row) => row.slaBreached).length;
@@ -176,7 +180,11 @@ function buildSnapshot(tickets: AnalyticsTicket[], filters: AnalyticsFilters): A
   };
 }
 
-function buildMemoKey(tickets: AnalyticsTicket[], filters: AnalyticsFilters) {
+function buildMemoKey(
+  tickets: AnalyticsTicket[],
+  filters: AnalyticsFilters,
+  slaSettings: SlaSettings,
+) {
   const ticketSignature = tickets
     .map((ticket) =>
       [
@@ -190,24 +198,25 @@ function buildMemoKey(tickets: AnalyticsTicket[], filters: AnalyticsFilters) {
     )
     .join('|');
 
-  return JSON.stringify(filters) + '|' + ticketSignature;
+  return JSON.stringify(filters) + '|' + JSON.stringify(slaSettings) + '|' + ticketSignature;
 }
 
 export function useMemoizedAnalytics(
   tickets: Ref<AnalyticsTicket[]>,
   filters: Ref<AnalyticsFilters>,
+  slaSettings: Ref<SlaSettings>,
 ) {
   const cache = new Map<string, AnalyticsSnapshot>();
 
   const snapshot = computed(() => {
-    const key = buildMemoKey(tickets.value, filters.value);
+    const key = buildMemoKey(tickets.value, filters.value, slaSettings.value);
     const cached = cache.get(key);
 
     if (cached) {
       return cached;
     }
 
-    const next = buildSnapshot(tickets.value, filters.value);
+    const next = buildSnapshot(tickets.value, filters.value, slaSettings.value);
     cache.set(key, next);
 
     if (cache.size > 30) {

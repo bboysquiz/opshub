@@ -13,7 +13,9 @@
             aria-label="Переключение меню"
             @click="ui.toggleDrawer()"
           />
-          <q-toolbar-title>OpsHub</q-toolbar-title>
+          <q-toolbar-title>
+            <NuxtLink to="/" class="default-layout__home-link"> OpsHub </NuxtLink>
+          </q-toolbar-title>
 
           <q-space />
 
@@ -175,3 +177,21 @@ if (import.meta.client) {
   );
 }
 </script>
+
+<style scoped>
+.default-layout__home-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.default-layout__home-link:hover,
+.default-layout__home-link:focus-visible {
+  text-decoration: none;
+}
+
+.default-layout__home-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+</style>

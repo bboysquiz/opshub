@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { API_BASE_URL } from '@opshub/shared-config';
+import { notifyWithPush } from '@opshub/shared-ui';
 import { useQuasar } from 'quasar';
 import { computed, onMounted, ref } from 'vue';
 import { useAuthStore } from '~/stores/auth';
-import { roleLabels, type UserRole } from '~/utils/access';
 
-type PushAudience = 'me' | 'admins' | 'agents' | 'employees';
 type BrowserNotificationPermission = 'default' | 'denied' | 'granted';
 type PushRequestInit = {
   method?: string;
@@ -19,41 +18,16 @@ type PushConfig = {
   subscriptionCount: number;
 };
 
-type PushSendResult = {
-  delivered: number;
-  failed: number;
-  removed: number;
-};
-
 const $q = useQuasar();
 const auth = useAuthStore();
 
 const loading = ref(true);
 const subscribing = ref(false);
-const testing = ref(false);
 const error = ref<string | null>(null);
 const config = ref<PushConfig | null>(null);
 const permission = ref<BrowserNotificationPermission>('default');
 const subscribedEndpoint = ref<string | null>(null);
 const swReady = ref(false);
-const testAudience = ref<PushAudience>('me');
-const lastTestResult = ref<PushSendResult | null>(null);
-
-const audienceOptions = computed(() => {
-  const base: Array<{ label: string; value: PushAudience }> = [
-    { label: 'Только мне', value: 'me' },
-  ];
-
-  if (auth.currentUser?.role === 'admin' || auth.currentUser?.role === 'agent') {
-    base.push(
-      { label: 'Администраторам', value: 'admins' },
-      { label: 'Агентам', value: 'agents' },
-      { label: 'Сотрудникам', value: 'employees' },
-    );
-  }
-
-  return base;
-});
 
 const isSupported = computed(
   () =>
@@ -64,9 +38,6 @@ const isSupported = computed(
 );
 
 const isSubscribed = computed(() => Boolean(subscribedEndpoint.value));
-const roleLabel = computed(() =>
-  auth.currentUser ? roleLabels[auth.currentUser.role as UserRole] : 'Гость',
-);
 
 function permissionLabel(value: BrowserNotificationPermission) {
   if (value === 'granted') {
@@ -78,14 +49,6 @@ function permissionLabel(value: BrowserNotificationPermission) {
   }
 
   return 'не запрошены';
-}
-
-function maskEndpoint(endpoint: string | null) {
-  if (!endpoint) {
-    return 'нет активной подписки';
-  }
-
-  return `${endpoint.slice(0, 48)}...`;
 }
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -167,8 +130,8 @@ async function getServiceWorkerRegistration() {
     return null;
   }
 
-  const registration = await navigator.serviceWorker.ready;
-  swReady.value = true;
+  const registration = await navigator.serviceWorker.getRegistration();
+  swReady.value = Boolean(registration);
   return registration;
 }
 
@@ -230,7 +193,9 @@ async function subscribe() {
 
     const registration = await getServiceWorkerRegistration();
     if (!registration) {
-      throw new Error('Service Worker не готов');
+      throw new Error(
+        'Service Worker не зарегистрирован. В dev-режиме push нужно тестировать через build/preview.',
+      );
     }
 
     const pushConfig = config.value ?? (await request<PushConfig>('/push/config'));
@@ -255,9 +220,11 @@ async function subscribe() {
 
     await refreshPageState();
 
-    $q.notify({
+    notifyWithPush($q, {
       type: 'positive',
       message: 'Push-уведомления включены',
+      pushTitle: 'Уведомления',
+      pushTag: `notifications-subscribed-${Date.now()}`,
     });
   } catch (subscribeError) {
     error.value =
@@ -294,9 +261,11 @@ async function unsubscribe() {
 
     await refreshPageState();
 
-    $q.notify({
+    notifyWithPush($q, {
       type: 'positive',
       message: 'Push-уведомления отключены',
+      pushTitle: 'Уведомления',
+      pushTag: `notifications-unsubscribed-${Date.now()}`,
     });
   } catch (unsubscribeError) {
     error.value =
@@ -308,33 +277,6 @@ async function unsubscribe() {
   }
 }
 
-async function sendTestNotification() {
-  testing.value = true;
-  error.value = null;
-  lastTestResult.value = null;
-
-  try {
-    lastTestResult.value = await request<PushSendResult>(
-      '/push/test',
-      {
-        method: 'POST',
-        body: JSON.stringify({ audience: testAudience.value }),
-      },
-      true,
-    );
-
-    $q.notify({
-      type: 'positive',
-      message: 'Тестовая отправка выполнена',
-    });
-  } catch (sendError) {
-    error.value =
-      sendError instanceof Error ? sendError.message : 'Не удалось отправить тестовое уведомление';
-  } finally {
-    testing.value = false;
-  }
-}
-
 onMounted(async () => {
   await refreshPageState();
 });
@@ -343,15 +285,7 @@ onMounted(async () => {
 <template>
   <ClientOnly>
     <div class="q-gutter-y-md">
-      <div class="row items-center q-gutter-sm">
-        <div class="text-h5">Уведомления</div>
-        <q-badge color="secondary">
-          {{ roleLabel }}
-        </q-badge>
-        <q-badge :color="isSupported ? 'positive' : 'negative'">
-          {{ isSupported ? 'Push API доступен' : 'Push API недоступен' }}
-        </q-badge>
-      </div>
+      <div class="text-h5">Уведомления</div>
 
       <q-banner v-if="error" rounded class="bg-red-1 text-red-9">
         {{ error }}
@@ -383,14 +317,6 @@ onMounted(async () => {
                     Service Worker: {{ swReady ? 'готов' : 'ожидание регистрации' }}
                   </div>
                 </div>
-                <q-space />
-                <q-btn
-                  flat
-                  color="primary"
-                  icon="refresh"
-                  label="Обновить"
-                  @click="refreshPageState"
-                />
               </q-card-section>
 
               <q-separator />
@@ -400,18 +326,12 @@ onMounted(async () => {
                   Разрешение браузера:
                   <strong>{{ permissionLabel(permission) }}</strong>
                 </div>
-                <div class="text-body2">
-                  Подписок на сервере:
-                  <strong>{{ config?.subscriptionCount ?? 0 }}</strong>
-                </div>
-                <div class="text-body2">
-                  Активная endpoint-подписка:
-                  <strong>{{ maskEndpoint(subscribedEndpoint) }}</strong>
-                </div>
-                <div class="text-caption text-grey-7">
-                  На `localhost` web push работает в Chromium как secure context. Если SW уже был
-                  зарегистрирован раньше, после обновления страницы дождись его активации.
-                </div>
+                <q-banner rounded class="bg-blue-1 text-blue-9">
+                  Чтобы push-уведомления показывались, проверь три условия: для сайта
+                  `localhost:3000` в браузере должны быть разрешены уведомления, в настройках
+                  операционной системы должны быть включены уведомления для браузера, а после
+                  изменения этих настроек страницу лучше перезагрузить и подписаться заново.
+                </q-banner>
               </q-card-section>
 
               <q-separator />
@@ -420,9 +340,9 @@ onMounted(async () => {
                 <q-btn
                   color="primary"
                   icon="notifications_active"
-                  :label="isSubscribed ? 'Переподписать' : 'Подписаться'"
+                  label="Подписаться"
                   :loading="subscribing"
-                  :disable="!isSupported"
+                  :disable="!isSupported || isSubscribed"
                   @click="subscribe"
                 />
                 <q-btn
@@ -434,45 +354,6 @@ onMounted(async () => {
                   :disable="!isSubscribed"
                   @click="unsubscribe"
                 />
-              </q-card-section>
-            </q-card>
-          </div>
-
-          <div class="col-12 col-xl-5">
-            <q-card flat bordered>
-              <q-card-section>
-                <div class="text-h6">Тестовая отправка</div>
-                <div class="text-caption text-grey-7">
-                  Отправляет push через backend с VAPID-подписью. По умолчанию уведомление уходит
-                  только текущему пользователю.
-                </div>
-              </q-card-section>
-
-              <q-card-section class="q-gutter-md">
-                <q-select
-                  v-model="testAudience"
-                  outlined
-                  emit-value
-                  map-options
-                  label="Аудитория"
-                  :options="audienceOptions"
-                />
-
-                <q-btn
-                  color="secondary"
-                  icon="send"
-                  label="Отправить тест"
-                  :loading="testing"
-                  :disable="!isSupported || !isSubscribed"
-                  @click="sendTestNotification"
-                />
-
-                <div v-if="lastTestResult" class="text-body2">
-                  Доставлено: <strong>{{ lastTestResult.delivered }}</strong
-                  >, ошибок: <strong>{{ lastTestResult.failed }}</strong
-                  >, удалено невалидных подписок:
-                  <strong>{{ lastTestResult.removed }}</strong>
-                </div>
               </q-card-section>
             </q-card>
           </div>

@@ -27,6 +27,20 @@ export type AnalyticsTicketViewModel = AnalyticsTicket & {
   slaBreached: boolean;
 };
 
+export type SlaSettings = {
+  lowMinutes: number;
+  mediumMinutes: number;
+  highMinutes: number;
+  updatedAt: string;
+};
+
+export const defaultSlaSettings: SlaSettings = {
+  lowMinutes: 24 * 60,
+  mediumMinutes: 8 * 60,
+  highMinutes: 4 * 60,
+  updatedAt: '',
+};
+
 export type AnalyticsFilters = {
   dateFrom: string;
   dateTo: string;

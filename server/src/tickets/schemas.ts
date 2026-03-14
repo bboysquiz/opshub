@@ -8,7 +8,7 @@ export const createTicketSchema = z.object({
   title: z.string().trim().min(1),
   description: z.string().optional().default(''),
   priority: z.enum(['low', 'medium', 'high']).optional().default('medium'),
-  assignedTo: z.string().uuid().optional(),
+  assignedTo: z.string().uuid().nullable().optional(),
 });
 
 export const updateTicketSchema = z

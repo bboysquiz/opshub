@@ -1,4 +1,10 @@
 import {
+  logKbArticleCreatedActivity,
+  logKbArticleDeletedActivity,
+  logKbArticleUpdatedActivity,
+} from '../activity/service';
+import type { AccessPayload } from '../auth/types';
+import {
   createKbArticle,
   deleteKbArticleById,
   findKbArticleById,
@@ -8,6 +14,7 @@ import {
   updateKbArticleById,
 } from './repository';
 import { KbError } from './errors';
+import { sanitizeCreateKbArticleInput, sanitizeUpdateKbArticleInput } from './sanitization';
 import type {
   CreateKbArticleInput,
   KbArticleDto,
@@ -79,9 +86,22 @@ function isUniqueViolation(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505';
 }
 
-export async function createKbArticleRecord(payload: CreateKbArticleInput): Promise<KbArticleDto> {
+export async function createKbArticleRecord(
+  payload: CreateKbArticleInput,
+  actor: AccessPayload,
+): Promise<KbArticleDto> {
   try {
-    const row = await createKbArticle(payload);
+    const sanitizedPayload = sanitizeCreateKbArticleInput(payload);
+    const row = await createKbArticle(sanitizedPayload);
+    await logKbArticleCreatedActivity({
+      actorId: actor.sub,
+      actorEmail: actor.email,
+      articleId: row.id,
+      articleTitle: row.title,
+    }).catch((error) => {
+      console.error('Failed to write kb_article_created activity event', error);
+    });
+
     return mapArticle(row);
   } catch (err) {
     if (isUniqueViolation(err)) {
@@ -95,17 +115,28 @@ export async function createKbArticleRecord(payload: CreateKbArticleInput): Prom
 export async function updateKbArticleRecord(
   id: string,
   payload: UpdateKbArticleInput,
+  actor: AccessPayload,
 ): Promise<KbArticleDto> {
   try {
+    const sanitizedPayload = sanitizeUpdateKbArticleInput(payload);
     const existing = await findKbArticleById(id);
     if (!existing) {
       throw new KbError(404, 'Article not found');
     }
 
-    const row = await updateKbArticleById(id, payload);
+    const row = await updateKbArticleById(id, sanitizedPayload);
     if (!row) {
       throw new KbError(404, 'Article not found');
     }
+
+    await logKbArticleUpdatedActivity({
+      actorId: actor.sub,
+      actorEmail: actor.email,
+      articleId: row.id,
+      articleTitle: row.title,
+    }).catch((error) => {
+      console.error('Failed to write kb_article_updated activity event', error);
+    });
 
     return mapArticle(row);
   } catch (err) {
@@ -117,7 +148,7 @@ export async function updateKbArticleRecord(
   }
 }
 
-export async function deleteKbArticleRecord(id: string): Promise<void> {
+export async function deleteKbArticleRecord(id: string, actor: AccessPayload): Promise<void> {
   const existing = await findKbArticleById(id);
   if (!existing) {
     throw new KbError(404, 'Article not found');
@@ -127,4 +158,13 @@ export async function deleteKbArticleRecord(id: string): Promise<void> {
   if (!deleted) {
     throw new KbError(404, 'Article not found');
   }
+
+  await logKbArticleDeletedActivity({
+    actorId: actor.sub,
+    actorEmail: actor.email,
+    articleId: existing.id,
+    articleTitle: existing.title,
+  }).catch((error) => {
+    console.error('Failed to write kb_article_deleted activity event', error);
+  });
 }

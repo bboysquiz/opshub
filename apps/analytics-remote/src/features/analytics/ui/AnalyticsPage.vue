@@ -3,7 +3,6 @@ import { storeToRefs } from 'pinia';
 import type { ChartData, ChartOptions } from 'chart.js';
 import { OpPageHeader, OpPanel, useReducedMotion } from '@opshub/shared-ui';
 import {
-  QBadge,
   QBanner,
   QBtn,
   QDate,
@@ -41,26 +40,14 @@ import {
 const authStore = useAuthStore();
 const analyticsStore = useAnalyticsStore();
 
-const { availableTeams, error, filters, lastLoadedAt, loading, tickets } =
+const { availableTeams, error, filters, loading, slaSettings, tickets } =
   storeToRefs(analyticsStore);
-const { snapshot } = useMemoizedAnalytics(tickets, filters);
+const { snapshot } = useMemoizedAnalytics(tickets, filters, slaSettings);
 const { reducedMotion } = useReducedMotion();
 
 const filtersReady = ref(false);
-const dateFromPopup = ref<{ hide: () => void } | null>(null);
-const dateToPopup = ref<{ hide: () => void } | null>(null);
-
-const accessTokenInput = computed({
-  get: () => authStore.accessToken,
-  set: (value: string) => {
-    if (value) {
-      authStore.setAccessToken(value);
-      return;
-    }
-
-    authStore.clearAccessToken();
-  },
-});
+const dateFromPopup = ref<{ hide: () => void; show: () => void } | null>(null);
+const dateToPopup = ref<{ hide: () => void; show: () => void } | null>(null);
 
 const statusOptions: Array<{ label: string; value: TicketStatus | 'all' }> = [
   { label: 'Все статусы', value: 'all' },
@@ -70,7 +57,7 @@ const statusOptions: Array<{ label: string; value: TicketStatus | 'all' }> = [
 ];
 
 const teamOptions = computed<Array<{ label: string; value: TeamFilter }>>(() => [
-  { label: 'Все команды', value: 'all' },
+  { label: 'Все роли', value: 'all' },
   ...availableTeams.value.map((team) => ({
     label: teamLabels[team],
     value: team,
@@ -80,7 +67,7 @@ const teamOptions = computed<Array<{ label: string; value: TeamFilter }>>(() => 
 const columns = [
   { name: 'title', label: 'Тикет', field: 'title', align: 'left' as const },
   { name: 'status', label: 'Статус', field: 'status', align: 'left' as const },
-  { name: 'team', label: 'Команда', field: 'assignedTeam', align: 'left' as const },
+  { name: 'team', label: 'Роль исполнителя', field: 'assignedTeam', align: 'left' as const },
   { name: 'priority', label: 'Приоритет', field: 'priority', align: 'left' as const },
   { name: 'response', label: 'Реакция', field: 'responseMinutes', align: 'left' as const },
   { name: 'sla', label: 'SLA', field: 'slaBreached', align: 'left' as const },
@@ -228,14 +215,6 @@ const teamSummary = computed(() =>
   snapshot.value.byTeam.map((item) => `${item.label}: ${item.count}`).join(', '),
 );
 
-function formatLastLoadedAt(value: string | null) {
-  if (!value) {
-    return 'ещё не загружалось';
-  }
-
-  return formatDateTime(value);
-}
-
 function teamColor(team: TeamKind) {
   return teamColors[team];
 }
@@ -312,12 +291,6 @@ onMounted(async () => {
       title="Аналитика"
       subtitle="SLA, динамика тикетов и фильтры с сохранением в URL и sessionStorage."
     >
-      <template #meta>
-        <q-badge color="grey-7" class="q-px-sm q-py-xs">
-          обновлено {{ formatLastLoadedAt(lastLoadedAt) }}
-        </q-badge>
-      </template>
-
       <template #actions>
         <q-btn
           flat
@@ -348,30 +321,6 @@ onMounted(async () => {
       {{ error }}
     </q-banner>
 
-    <OpPanel
-      class="q-mb-md"
-      title="Доступ"
-      caption="Аналитика использует защищённый endpoint и подтягивает сессию через refresh-cookie."
-    >
-      <div class="row items-center q-col-gutter-md">
-        <div class="col-12 col-lg-6">
-          <q-input
-            v-model="accessTokenInput"
-            outlined
-            dense
-            type="password"
-            label="Токен доступа (JWT)"
-            placeholder="Вставь JWT, если refresh-cookie ещё нет"
-            aria-label="Токен доступа JWT"
-          />
-        </div>
-
-        <div class="col-12 col-lg-6 text-caption text-grey-7">
-          Если сессия уже открыта, токен подтянется автоматически через refresh-cookie.
-        </div>
-      </div>
-    </OpPanel>
-
     <OpPanel class="q-mb-md" title="Фильтры" caption="Фильтры сохраняются в URL и sessionStorage.">
       <div class="row q-col-gutter-md">
         <div class="col-12 col-md-3">
@@ -383,6 +332,7 @@ onMounted(async () => {
             placeholder="ГГГГ-ММ-ДД"
             label="Дата с"
             aria-label="Дата начала периода"
+            @click="dateFromPopup?.show()"
           >
             <template #prepend>
               <q-icon name="event" class="cursor-pointer">
@@ -422,7 +372,7 @@ onMounted(async () => {
                 dense
                 icon="close"
                 aria-label="Очистить дату начала"
-                @click="patchFilter('dateFrom', '')"
+                @click.stop="patchFilter('dateFrom', '')"
               />
             </template>
           </q-input>
@@ -437,6 +387,7 @@ onMounted(async () => {
             placeholder="ГГГГ-ММ-ДД"
             label="Дата по"
             aria-label="Дата окончания периода"
+            @click="dateToPopup?.show()"
           >
             <template #prepend>
               <q-icon name="event" class="cursor-pointer">
@@ -476,7 +427,7 @@ onMounted(async () => {
                 dense
                 icon="close"
                 aria-label="Очистить дату окончания"
-                @click="patchFilter('dateTo', '')"
+                @click.stop="patchFilter('dateTo', '')"
               />
             </template>
           </q-input>
@@ -503,9 +454,9 @@ onMounted(async () => {
             dense
             emit-value
             map-options
-            label="Команда"
+            label="Роль исполнителя"
             :options="teamOptions"
-            aria-label="Фильтр по команде"
+            aria-label="Фильтр по роли исполнителя"
             @update:model-value="(value) => patchFilter('team', value)"
           />
         </div>
@@ -514,8 +465,8 @@ onMounted(async () => {
       <q-separator />
 
       <div class="text-caption text-grey-7">
-        Фильтры сохраняются в URL и `sessionStorage`. В текущей модели поле команды ещё не выделено,
-        поэтому фильтр "Команда" строится по роли исполнителя.
+        Фильтры сохраняются в URL и `sessionStorage`. Аналитика показывает распределение по ролям
+        исполнителей.
       </div>
     </OpPanel>
 
@@ -612,14 +563,18 @@ onMounted(async () => {
 
     <div class="row q-col-gutter-md q-mb-md">
       <div class="col-12">
-        <OpPanel class="analytics-card" title="Распределение по командам">
+        <OpPanel
+          class="analytics-card"
+          title="Распределение по ролям"
+          caption="Распределение по ролям исполнителей."
+        >
           <div class="op-sr-only" aria-live="polite">
             {{ teamSummary }}
           </div>
           <div
             class="analytics-chart analytics-chart--wide"
             role="img"
-            aria-label="График распределения по командам"
+            aria-label="График распределения по ролям"
           >
             <Bar :data="teamChartData" :options="teamChartOptions" />
           </div>

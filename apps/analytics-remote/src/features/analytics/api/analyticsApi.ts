@@ -1,13 +1,13 @@
-import type { AnalyticsTicket } from '../domain/models';
+import type { AnalyticsTicket, SlaSettings } from '../domain/models';
 import { http } from './http';
 
 type AnalyticsTicketsResponse = {
   items: AnalyticsTicket[];
+  slaSettings: SlaSettings;
 };
 
 export const analyticsApi = {
-  async listTickets(): Promise<AnalyticsTicket[]> {
-    const response = await http<AnalyticsTicketsResponse>('/analytics/tickets');
-    return response.items;
+  async listTickets(): Promise<AnalyticsTicketsResponse> {
+    return http<AnalyticsTicketsResponse>('/analytics/tickets');
   },
 };

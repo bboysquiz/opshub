@@ -13,7 +13,7 @@ import {
   QSpinner,
   useQuasar,
 } from 'quasar';
-import { OpPageHeader, OpPanel } from '@opshub/shared-ui';
+import { OpPageHeader, OpPanel, notifyWithPush } from '@opshub/shared-ui';
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 import { useKbStore } from '../stores/kb';
 
@@ -145,9 +145,11 @@ async function saveArticle() {
   };
 
   if (!payload.slug || !payload.title || !payload.content) {
-    $q.notify({
+    notifyWithPush($q, {
       type: 'warning',
       message: 'Заполните slug, заголовок и содержимое статьи',
+      pushTitle: 'База знаний',
+      pushTag: `kb-validation-${Date.now()}`,
     });
     return;
   }
@@ -157,23 +159,29 @@ async function saveArticle() {
   try {
     if (isCreating.value) {
       await kb.createArticle(payload);
-      $q.notify({
+      notifyWithPush($q, {
         type: 'positive',
         message: 'Статья создана',
+        pushTitle: 'База знаний',
+        pushTag: `kb-created-${Date.now()}`,
       });
     } else if (isEditing.value && kb.current) {
       await kb.updateArticle(kb.current.id, kb.current.slug, payload);
-      $q.notify({
+      notifyWithPush($q, {
         type: 'positive',
         message: 'Статья обновлена',
+        pushTitle: 'База знаний',
+        pushTag: `kb-updated-${Date.now()}`,
       });
     }
 
     editorMode.value = 'view';
   } catch (error) {
-    $q.notify({
+    notifyWithPush($q, {
       type: 'negative',
       message: error instanceof Error ? error.message : 'Не удалось сохранить статью',
+      pushTitle: 'База знаний',
+      pushTag: `kb-save-failed-${Date.now()}`,
     });
   } finally {
     saving.value = false;
@@ -202,14 +210,18 @@ function confirmDeleteArticle() {
       editorMode.value = 'view';
       resetArticleForm();
 
-      $q.notify({
+      notifyWithPush($q, {
         type: 'positive',
         message: 'Статья удалена',
+        pushTitle: 'База знаний',
+        pushTag: `kb-deleted-${Date.now()}`,
       });
     } catch (error) {
-      $q.notify({
+      notifyWithPush($q, {
         type: 'negative',
         message: error instanceof Error ? error.message : 'Не удалось удалить статью',
+        pushTitle: 'База знаний',
+        pushTag: `kb-delete-failed-${Date.now()}`,
       });
     } finally {
       deleting.value = false;

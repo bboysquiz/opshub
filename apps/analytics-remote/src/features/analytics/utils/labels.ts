@@ -13,10 +13,10 @@ export const priorityLabels: Record<TicketPriority, string> = {
 };
 
 export const teamLabels: Record<TeamKind, string> = {
-  support: 'Поддержка',
-  operations: 'Операции',
-  requesters: 'Сотрудники',
-  unassigned: 'Без назначения',
+  support: 'Агент',
+  operations: 'Администратор',
+  requesters: 'Сотрудник',
+  unassigned: 'Без исполнителя',
 };
 
 export const teamColors: Record<TeamKind, string> = {
