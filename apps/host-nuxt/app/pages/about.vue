@@ -109,7 +109,7 @@ const architectureCards: SummaryCard[] = [
   {
     title: 'Shared packages',
     caption:
-      'shared-ui — BEM-обёртки и общие стили; shared-config — общие URL/конфиги; shared-api минимален. Это снижает связность и убирает дублирование между remotes.',
+      'shared-ui — BEM-обёртки и общие стили; shared-config — общие URL/конфиги. Это снижает связность и убирает дублирование между remotes.',
   },
 ];
 

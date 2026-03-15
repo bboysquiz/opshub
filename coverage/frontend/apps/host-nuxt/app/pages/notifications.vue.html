@@ -436,28 +436,7 @@
 <a name='L371'></a><a href='#L371'>371</a>
 <a name='L372'></a><a href='#L372'>372</a>
 <a name='L373'></a><a href='#L373'>373</a>
-<a name='L374'></a><a href='#L374'>374</a>
-<a name='L375'></a><a href='#L375'>375</a>
-<a name='L376'></a><a href='#L376'>376</a>
-<a name='L377'></a><a href='#L377'>377</a>
-<a name='L378'></a><a href='#L378'>378</a>
-<a name='L379'></a><a href='#L379'>379</a>
-<a name='L380'></a><a href='#L380'>380</a>
-<a name='L381'></a><a href='#L381'>381</a>
-<a name='L382'></a><a href='#L382'>382</a>
-<a name='L383'></a><a href='#L383'>383</a>
-<a name='L384'></a><a href='#L384'>384</a>
-<a name='L385'></a><a href='#L385'>385</a>
-<a name='L386'></a><a href='#L386'>386</a>
-<a name='L387'></a><a href='#L387'>387</a>
-<a name='L388'></a><a href='#L388'>388</a>
-<a name='L389'></a><a href='#L389'>389</a>
-<a name='L390'></a><a href='#L390'>390</a>
-<a name='L391'></a><a href='#L391'>391</a>
-<a name='L392'></a><a href='#L392'>392</a>
-<a name='L393'></a><a href='#L393'>393</a>
-<a name='L394'></a><a href='#L394'>394</a>
-<a name='L395'></a><a href='#L395'>395</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L374'></a><a href='#L374'>374</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -747,12 +726,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -766,10 +739,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
@@ -778,11 +747,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -800,9 +764,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -837,9 +798,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1138,15 +1096,9 @@ onMounted(async () =&gt; {
 &lt;template&gt;
   &lt;ClientOnly&gt;
     &lt;div class="q-gutter-y-md"&gt;
-      &lt;div class="text-h5"&gt;
-        Уведомления
-      &lt;/div&gt;
+      &lt;div class="text-h5"&gt;Уведомления&lt;/div&gt;
 &nbsp;
-      &lt;q-banner
-        v-if="<span class="branch-0 cbranch-no" title="branch not covered" >error"</span>
-        rounded
-        class="bg-red-1 text-red-9"
-      &gt;
+      &lt;q-banner v-if="<span class="branch-0 cbranch-no" title="branch not covered" >error" rounded class="bg-red-1 text-red-9"&gt;</span>
 <span class="fstat-no" title="function not covered" >        {{ e</span>rror }}<span class="cstat-no" title="statement not covered" ></span>
       &lt;/q-banner&gt;
 &nbsp;
@@ -1158,11 +1110,7 @@ onMounted(async () =&gt; {
         Уведомления заблокированы браузером. Разреши их в настройках сайта и подпишись заново.
 <span class="cstat-no" title="statement not covered" >      &lt;/q-banner&gt;</span>
 &nbsp;
-      &lt;q-card
-        v-if="loading"
-        flat
-        bordered
-      &gt;
+      &lt;q-card v-if="loading" flat bordered&gt;
         &lt;q-card-section class="row items-center q-gutter-sm"&gt;
           &lt;q-spinner /&gt;
           &lt;div&gt;Загружаю настройки push-уведомлений…&lt;/div&gt;
@@ -1172,15 +1120,10 @@ onMounted(async () =&gt; {
       &lt;template v-else&gt;
 <span class="branch-1 cbranch-no" title="branch not covered" >        &lt;div class="row q-col-gutter-md"&gt;</span>
           &lt;div class="col-12 col-xl-7"&gt;
-            &lt;q-card
-              flat
-              bordered
-            &gt;
+            &lt;q-card flat bordered&gt;
 <span class="fstat-no" title="function not covered" >              &lt;q-card-section c</span>lass="row items-center"&gt;
 <span class="fstat-no" title="function not covered" >                &lt;div&gt;</span>
-                  &lt;div class="text-h6"&gt;
-                    Подписка браузера
-                  &lt;/div&gt;
+                  &lt;div class="text-h6"&gt;Подписка браузера&lt;/div&gt;
                   &lt;div class="text-caption text-grey-7"&gt;
                     Service Worker: {{ swReady ? 'готов' : 'ожидание регистрации' }}
                   &lt;/div&gt;
@@ -1194,10 +1137,7 @@ onMounted(async () =&gt; {
                   Разрешение браузера:
                   &lt;strong&gt;{{ permissionLabel(permission) }}&lt;/strong&gt;
                 &lt;/div&gt;<span class="cstat-no" title="statement not covered" ></span>
-                &lt;q-banner
-                  rounded
-                  class="bg-blue-1 text-blue-9"
-                &gt;<span class="fstat-no" title="function not covered" ></span>
+                &lt;q-banner rounded class="bg-blue-1 text-blue-9"&gt;<span class="fstat-no" title="function not covered" ></span>
                   Чтобы push-уведомления показывались, проверь три условия: для сайта
                   `localhost:3000` в браузере должны быть разрешены уведомления, в настройках
                   операционной системы должны быть включены уведомления для браузера, а после
@@ -1233,10 +1173,7 @@ onMounted(async () =&gt; {
     &lt;/div&gt;
 &nbsp;
     &lt;template #fallback&gt;
-<span class="fstat-no" title="function not covered" >      &lt;q-card</span>
-        flat
-        bordered
-      &gt;
+<span class="fstat-no" title="function not covered" >      &lt;q-card f</span>lat bordered&gt;
 <span class="fstat-no" title="function not covered" >        &lt;q-card-section c</span>lass="row items-center q-gutter-sm"&gt;
 <span class="fstat-no" title="function not covered" >          &lt;q-spinner /&gt;<span class="cstat-no" title="statement not covered" ></span></span>
           &lt;div&gt;Подключаю Notifications…&lt;/div&gt;
@@ -1252,7 +1189,7 @@ onMounted(async () =&gt; {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-03-15T05:38:08.484Z
+                at 2026-03-15T05:45:34.247Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>
