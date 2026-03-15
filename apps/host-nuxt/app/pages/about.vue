@@ -211,6 +211,11 @@ const toolingCards: SummaryCard[] = [
       'Форматирование вынесено в общий .prettierrc и корневой script format. Один стиль применяется к TS, Vue, JSON, Markdown и YAML, чтобы не расползался code style.',
   },
   {
+    title: 'Vitest',
+    caption:
+      'Фронтенд покрыт unit и smoke-тестами на Vitest: общий test-контур поднимает jsdom, stubs для Nuxt/Quasar, проверяет utils, composables, directives и ключевые страницы host/remotes, а coverage собирается отдельным корневым прогоном.',
+  },
+  {
     title: 'Git hooks',
     caption:
       'Через Husky и lint-staged pre-commit запускает eslint --fix и prettier по staged-файлам. Это даёт быстрый локальный quality gate ещё до push и CI.',

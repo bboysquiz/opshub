@@ -296,15 +296,16 @@ onBeforeUnmount(() => {
             <q-item
               v-for="article in kb.list"
               :key="article.slug"
+              class="kb-page__list-item"
               clickable
               :active="kb.current?.slug === article.slug && !isEditorVisible"
-              active-class="bg-grey-2"
+              active-class="kb-page__list-item--active"
               :aria-label="`Открыть статью ${article.title}`"
               @click="openArticle(article.slug)"
             >
               <q-item-section>
                 <q-item-label>{{ article.title }}</q-item-label>
-                <q-item-label caption>
+                <q-item-label class="kb-page__slug" caption>
                   {{ article.slug }}
                 </q-item-label>
               </q-item-section>
@@ -315,15 +316,16 @@ onBeforeUnmount(() => {
             <q-item
               v-for="result in kb.results"
               :key="result.slug"
+              class="kb-page__list-item"
               clickable
               :active="kb.current?.slug === result.slug && !isEditorVisible"
-              active-class="bg-grey-2"
+              active-class="kb-page__list-item--active"
               :aria-label="`Открыть статью ${result.title}`"
               @click="openArticle(result.slug)"
             >
               <q-item-section>
                 <q-item-label>{{ result.title }}</q-item-label>
-                <q-item-label caption>
+                <q-item-label class="kb-page__slug" caption>
                   {{ result.slug }}
                 </q-item-label>
               </q-item-section>
@@ -447,6 +449,41 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.kb-page__list-item {
+  border-radius: 0.75rem;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.kb-page__slug {
+  color: rgb(100 116 139);
+}
+
+.kb-page__list-item--active {
+  background: rgb(59 130 246 / 0.12);
+  color: inherit;
+}
+
+.kb-page__list-item--active .kb-page__slug {
+  color: rgb(71 85 105);
+}
+
+:global(body.body--dark) .kb-page__slug,
+:global(.q-dark) .kb-page__slug {
+  color: rgb(148 163 184);
+}
+
+:global(body.body--dark) .kb-page__list-item--active,
+:global(.q-dark) .kb-page__list-item--active {
+  background: rgb(96 165 250 / 0.18);
+}
+
+:global(body.body--dark) .kb-page__list-item--active .kb-page__slug,
+:global(.q-dark) .kb-page__list-item--active .kb-page__slug {
+  color: rgb(226 232 240);
+}
+
 .kb-page__article-head {
   margin-bottom: 1rem;
 }

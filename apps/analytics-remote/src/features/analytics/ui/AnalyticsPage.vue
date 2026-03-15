@@ -472,46 +472,51 @@ onMounted(async () => {
 
     <div class="row q-col-gutter-md q-mb-md">
       <div class="col-12 col-sm-6 col-xl-3">
-        <OpPanel title="Всего тикетов">
-          <div>
+        <OpPanel class="analytics-card analytics-card--summary" title="Всего тикетов">
+          <div class="analytics-summary">
             <div class="text-caption text-grey-7">Всего тикетов</div>
-            <div class="text-h5">
+            <div class="text-h5 analytics-summary__value">
               {{ snapshot.totalCount }}
             </div>
+            <div class="analytics-summary__meta" aria-hidden="true" />
           </div>
         </OpPanel>
       </div>
 
       <div class="col-12 col-sm-6 col-xl-3">
-        <OpPanel title="Активные">
-          <div>
+        <OpPanel class="analytics-card analytics-card--summary" title="Активные">
+          <div class="analytics-summary">
             <div class="text-caption text-grey-7">Активные</div>
-            <div class="text-h5">
+            <div class="text-h5 analytics-summary__value">
               {{ snapshot.activeCount }}
             </div>
+            <div class="analytics-summary__meta" aria-hidden="true" />
           </div>
         </OpPanel>
       </div>
 
       <div class="col-12 col-sm-6 col-xl-3">
-        <OpPanel title="Среднее время реакции">
-          <div>
+        <OpPanel class="analytics-card analytics-card--summary" title="Среднее время реакции">
+          <div class="analytics-summary">
             <div class="text-caption text-grey-7">Среднее время реакции</div>
-            <div class="text-h6">
+            <div class="text-h6 analytics-summary__value">
               {{ formatDuration(snapshot.avgResponseMinutes) }}
             </div>
+            <div class="analytics-summary__meta" aria-hidden="true" />
           </div>
         </OpPanel>
       </div>
 
       <div class="col-12 col-sm-6 col-xl-3">
-        <OpPanel title="Нарушено SLA">
-          <div>
+        <OpPanel class="analytics-card analytics-card--summary" title="Нарушено SLA">
+          <div class="analytics-summary">
             <div class="text-caption text-grey-7">Нарушено SLA</div>
-            <div class="text-h5">
+            <div class="text-h5 analytics-summary__value">
               {{ snapshot.breachedCount }}
             </div>
-            <div class="text-caption text-grey-7">решено {{ snapshot.resolvedSharePercent }}%</div>
+            <div class="analytics-summary__meta text-caption text-grey-7">
+              решено {{ snapshot.resolvedSharePercent }}%
+            </div>
           </div>
         </OpPanel>
       </div>
@@ -646,6 +651,23 @@ onMounted(async () => {
 <style scoped>
 .analytics-card {
   height: 100%;
+}
+
+.analytics-summary {
+  display: grid;
+  min-height: 5.5rem;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.5rem;
+}
+
+.analytics-summary__value {
+  display: flex;
+  align-items: flex-end;
+  min-height: 2.5rem;
+}
+
+.analytics-summary__meta {
+  min-height: 1.25rem;
 }
 
 .analytics-chart {
