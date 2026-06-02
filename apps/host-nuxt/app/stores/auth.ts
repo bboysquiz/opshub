@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { API_BASE_URL } from '@opshub/shared-config';
 import {
   defaultSlaSettings,
   hasPermission,
@@ -11,6 +10,7 @@ import {
   type SlaSettings,
   type UserRole,
 } from '~/utils/access';
+import { useOpsHubRuntimeConfig } from '~/utils/runtime';
 
 type AccessTokenResponse = {
   accessToken?: string;
@@ -82,6 +82,7 @@ function normalizeUser(payload: Partial<AuthUser> & Record<string, unknown>): Au
 }
 
 export const useAuthStore = defineStore('host-auth', () => {
+  const { apiBaseUrl } = useOpsHubRuntimeConfig();
   const accessToken = ref('');
   const currentUser = ref<AuthUser | null>(null);
   const users = ref<AuthUser[]>([]);
@@ -127,7 +128,7 @@ export const useAuthStore = defineStore('host-auth', () => {
       return existing;
     }
 
-    const res = await fetch(`${API_BASE_URL}/csrf`, {
+    const res = await fetch(`${apiBaseUrl}/csrf`, {
       method: 'GET',
       credentials: 'include',
     });
@@ -159,7 +160,7 @@ export const useAuthStore = defineStore('host-auth', () => {
       headers.set('Content-Type', 'application/json');
     }
 
-    const res = await fetch(`${API_BASE_URL}${path}`, {
+    const res = await fetch(`${apiBaseUrl}${path}`, {
       ...init,
       headers,
       credentials: 'include',

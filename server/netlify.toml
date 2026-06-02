@@ -1,0 +1,18 @@
+[build]
+command = "pnpm --filter server netlify:build"
+functions = "server/netlify/functions"
+publish = "server/public"
+
+[build.environment]
+NODE_VERSION = "22"
+PNPM_VERSION = "10.30.2"
+
+[functions]
+external_node_modules = ["bcrypt"]
+node_bundler = "esbuild"
+
+[[redirects]]
+from = "/*"
+to = "/.netlify/functions/api/:splat"
+status = 200
+force = true

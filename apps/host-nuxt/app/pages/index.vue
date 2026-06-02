@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { navigateTo } from '#imports';
-import { API_BASE_URL } from '@opshub/shared-config';
 import { OpPageHeader, OpPanel, useReducedMotion } from '@opshub/shared-ui';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useAuthStore } from '~/stores/auth';
+import { useOpsHubRuntimeConfig } from '~/utils/runtime';
 
 type ActivityFeedItem = {
   id: string;
@@ -49,6 +49,7 @@ type GsapInstance = typeof import('gsap').gsap;
 const ACTIVITY_FEED_PAGE_SIZE = 20;
 
 const auth = useAuthStore();
+const { apiBaseUrl } = useOpsHubRuntimeConfig();
 const loading = ref(false);
 const loadingMore = ref(false);
 const error = ref<string | null>(null);
@@ -371,7 +372,7 @@ function buildActivityFeedPath(cursor: ActivityFeedCursor | null) {
 
 async function authorizedGet<T>(path: string): Promise<T> {
   async function attempt(token: string): Promise<T> {
-    const res = await fetch(`${API_BASE_URL}${path}`, {
+    const res = await fetch(`${apiBaseUrl}${path}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

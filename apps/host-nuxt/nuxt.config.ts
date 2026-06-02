@@ -7,6 +7,18 @@ export default defineNuxtConfig({
   ssr: true,
   devServer: { port: 3000 },
   modules: ['@pinia/nuxt', '@vite-pwa/nuxt'],
+  runtimeConfig: {
+    public: {
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001',
+      ticketsRemoteEntryUrl:
+        process.env.NUXT_PUBLIC_TICKETS_REMOTE_ENTRY_URL ?? 'http://localhost:3010/remoteEntry.js',
+      kbRemoteEntryUrl:
+        process.env.NUXT_PUBLIC_KB_REMOTE_ENTRY_URL ?? 'http://localhost:3020/remoteEntry.js',
+      analyticsRemoteEntryUrl:
+        process.env.NUXT_PUBLIC_ANALYTICS_REMOTE_ENTRY_URL ??
+        'http://localhost:3030/remoteEntry.js',
+    },
+  },
   app: {
     head: {
       title: 'OpsHub',

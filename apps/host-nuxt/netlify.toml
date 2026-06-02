@@ -1,0 +1,13 @@
+[build]
+command = "pnpm --filter host-nuxt generate"
+publish = "apps/host-nuxt/.output/public"
+
+[build.environment]
+NODE_VERSION = "22"
+PNPM_VERSION = "10.30.2"
+PNPM_FLAGS = "--shamefully-hoist"
+
+[[redirects]]
+from = "/*"
+to = "/200.html"
+status = 200

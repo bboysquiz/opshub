@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { API_BASE_URL } from '@opshub/shared-config';
 import { notifyWithPush } from '@opshub/shared-ui';
 import { useQuasar } from 'quasar';
 import { computed, onMounted, ref } from 'vue';
 import { useAuthStore } from '~/stores/auth';
+import { useOpsHubRuntimeConfig } from '~/utils/runtime';
 
 type BrowserNotificationPermission = 'default' | 'denied' | 'granted';
 type PushRequestInit = {
@@ -20,6 +20,7 @@ type PushConfig = {
 
 const $q = useQuasar();
 const auth = useAuthStore();
+const { apiBaseUrl } = useOpsHubRuntimeConfig();
 
 const loading = ref(true);
 const subscribing = ref(false);
@@ -86,7 +87,7 @@ async function request<T>(path: string, init: PushRequestInit = {}, withCsrf = f
       headers.set('x-csrf-token', await auth.ensureCsrfToken());
     }
 
-    const res = await fetch(`${API_BASE_URL}${path}`, {
+    const res = await fetch(`${apiBaseUrl}${path}`, {
       ...init,
       headers,
       credentials: 'include',

@@ -21,16 +21,30 @@ type PushPayload = {
   tag?: string;
 };
 
+function isRemoteAssetRequest(url: URL): boolean {
+  return (
+    url.pathname.startsWith('/assets/') &&
+    (url.origin !== self.location.origin || ['3010', '3020', '3030'].includes(url.port))
+  );
+}
+
+function isCacheableApiPath(pathname: string): boolean {
+  return (
+    pathname === '/tickets' ||
+    pathname.startsWith('/tickets/') ||
+    pathname === '/kb/articles' ||
+    pathname.startsWith('/kb/articles/') ||
+    pathname === '/analytics/tickets'
+  );
+}
+
 self.skipWaiting();
 clientsClaim();
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
 registerRoute(
-  ({ url, request }) =>
-    request.method === 'GET' &&
-    ['3010', '3020', '3030'].includes(url.port) &&
-    url.pathname.startsWith('/assets/'),
+  ({ url, request }) => request.method === 'GET' && isRemoteAssetRequest(url),
   new StaleWhileRevalidate({
     cacheName: 'remote-assets',
     plugins: [
@@ -46,14 +60,7 @@ registerRoute(
 );
 
 registerRoute(
-  ({ url, request }) =>
-    request.method === 'GET' &&
-    url.origin === 'http://localhost:3001' &&
-    (url.pathname === '/tickets' ||
-      url.pathname.startsWith('/tickets/') ||
-      url.pathname === '/kb/articles' ||
-      url.pathname.startsWith('/kb/articles/') ||
-      url.pathname === '/analytics/tickets'),
+  ({ url, request }) => request.method === 'GET' && isCacheableApiPath(url.pathname),
   new NetworkFirst({
     cacheName: 'opshub-api',
     networkTimeoutSeconds: 3,

@@ -22,15 +22,17 @@
 <script setup lang="ts">
 import { useRemoteModule } from '~/composables/useRemoteModule';
 import { useAuthStore } from '~/stores/auth';
+import { useOpsHubRuntimeConfig } from '~/utils/runtime';
 
 const auth = useAuthStore();
+const { kbRemoteEntryUrl } = useOpsHubRuntimeConfig();
 
 const {
   component: RemoteComp,
   error,
   loading,
 } = useRemoteModule({
-  entryUrl: 'http://localhost:3020/remoteEntry.js',
+  entryUrl: kbRemoteEntryUrl,
   exposedModule: './KbApp',
   errorMessage: 'Не удалось загрузить удалённый модуль базы знаний',
 });

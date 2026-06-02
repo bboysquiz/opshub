@@ -19,9 +19,11 @@
 import type { Component } from 'vue';
 import { computed } from 'vue';
 import { useRemoteModule } from '../composables/useRemoteModule';
+import { useOpsHubRuntimeConfig } from '../utils/runtime';
 
+const { analyticsRemoteEntryUrl } = useOpsHubRuntimeConfig();
 const { component, error } = useRemoteModule<Component>({
-  entryUrl: 'http://localhost:3030/remoteEntry.js',
+  entryUrl: analyticsRemoteEntryUrl,
   exposedModule: './AnalyticsApp',
   errorMessage: 'Не удалось загрузить модуль аналитики',
 });
