@@ -1,6 +1,6 @@
 import { createPinia } from 'pinia';
 import { Notify, Quasar } from 'quasar';
-import type { App } from 'vue';
+import type { App, Plugin } from 'vue';
 import { installSharedUiDirectives } from '@opshub/shared-ui';
 
 import '@opshub/shared-ui/styles.css';
@@ -11,7 +11,7 @@ import { ensureAnalyticsChartsRegistered } from './charts';
 export function installAnalyticsRemote(app: App) {
   ensureAnalyticsChartsRegistered();
   app.use(createPinia());
-  app.use(Quasar, {
+  app.use(Quasar as unknown as Plugin, {
     plugins: {
       Notify,
     },
