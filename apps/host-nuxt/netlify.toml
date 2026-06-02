@@ -1,5 +1,5 @@
 [build]
-  command = "pnpm --filter host-nuxt build"
+  command = "pnpm --filter host-nuxt generate"
   publish = "apps/host-nuxt/dist"
 
 [build.environment]

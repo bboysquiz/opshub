@@ -4,7 +4,7 @@ const devFavicon =
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  ssr: true,
+  ssr: false,
   devServer: { port: 3000 },
   modules: ['@pinia/nuxt', '@vite-pwa/nuxt'],
   runtimeConfig: {
