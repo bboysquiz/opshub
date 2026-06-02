@@ -1,8 +1,8 @@
 [build]
   command = "pnpm --filter host-nuxt build"
-  publish = "apps/host-nuxt/.output/public"
+  publish = "apps/host-nuxt/dist"
 
 [build.environment]
-  NODE_VERSION = "22"
+  NODE_VERSION = "20.19.0"
   PNPM_VERSION = "10.30.2"
   PNPM_FLAGS = "--shamefully-hoist"
