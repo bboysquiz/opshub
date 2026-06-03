@@ -1,6 +1,40 @@
 const isDev = process.env.NODE_ENV !== 'production';
+const isNetlify = process.env.NETLIFY === 'true';
+const defaultApiBaseUrl = isNetlify ? '/api' : 'http://localhost:3001';
+const defaultTicketsRemoteEntryUrl = isNetlify
+  ? 'https://opshub-tickets.netlify.app/remoteEntry.js'
+  : 'http://localhost:3010/remoteEntry.js';
+const defaultKbRemoteEntryUrl = isNetlify
+  ? 'https://opshub-kb.netlify.app/remoteEntry.js'
+  : 'http://localhost:3020/remoteEntry.js';
+const defaultAnalyticsRemoteEntryUrl = isNetlify
+  ? 'https://opshub-analytics.netlify.app/remoteEntry.js'
+  : 'http://localhost:3030/remoteEntry.js';
 const devFavicon =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231976D2'/%3E%3Ctext x='50%25' y='54%25' text-anchor='middle' font-family='Arial' font-size='34' fill='white'%3EO%3C/text%3E%3C/svg%3E";
+
+function getManualChunkName(id: string) {
+  const normalizedId = id.replaceAll('\\', '/');
+
+  if (!normalizedId.includes('/node_modules/')) {
+    return undefined;
+  }
+
+  if (normalizedId.includes('/quasar/') || normalizedId.includes('/@quasar/extras/')) {
+    return 'quasar';
+  }
+
+  if (
+    normalizedId.includes('/vue/') ||
+    normalizedId.includes('/vue-router/') ||
+    normalizedId.includes('/pinia/') ||
+    normalizedId.includes('/@vue/')
+  ) {
+    return 'vue-vendor';
+  }
+
+  return undefined;
+}
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
@@ -9,14 +43,12 @@ export default defineNuxtConfig({
   modules: ['@pinia/nuxt', '@vite-pwa/nuxt'],
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001',
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL ?? defaultApiBaseUrl,
       ticketsRemoteEntryUrl:
-        process.env.NUXT_PUBLIC_TICKETS_REMOTE_ENTRY_URL ?? 'http://localhost:3010/remoteEntry.js',
-      kbRemoteEntryUrl:
-        process.env.NUXT_PUBLIC_KB_REMOTE_ENTRY_URL ?? 'http://localhost:3020/remoteEntry.js',
+        process.env.NUXT_PUBLIC_TICKETS_REMOTE_ENTRY_URL ?? defaultTicketsRemoteEntryUrl,
+      kbRemoteEntryUrl: process.env.NUXT_PUBLIC_KB_REMOTE_ENTRY_URL ?? defaultKbRemoteEntryUrl,
       analyticsRemoteEntryUrl:
-        process.env.NUXT_PUBLIC_ANALYTICS_REMOTE_ENTRY_URL ??
-        'http://localhost:3030/remoteEntry.js',
+        process.env.NUXT_PUBLIC_ANALYTICS_REMOTE_ENTRY_URL ?? defaultAnalyticsRemoteEntryUrl,
     },
   },
   app: {
@@ -76,6 +108,13 @@ export default defineNuxtConfig({
     },
   },
   vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: getManualChunkName,
+        },
+      },
+    },
     optimizeDeps: {
       exclude: ['tickets_remote/TicketsApp', 'kb_remote/KbApp', 'analytics_remote/AnalyticsApp'],
     },

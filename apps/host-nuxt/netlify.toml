@@ -6,3 +6,18 @@
   NODE_VERSION = "20.19.0"
   PNPM_VERSION = "10.30.2"
   PNPM_FLAGS = "--shamefully-hoist"
+  NUXT_PUBLIC_API_BASE_URL = "/api"
+  NUXT_PUBLIC_TICKETS_REMOTE_ENTRY_URL = "https://opshub-tickets.netlify.app/remoteEntry.js"
+  NUXT_PUBLIC_KB_REMOTE_ENTRY_URL = "https://opshub-kb.netlify.app/remoteEntry.js"
+  NUXT_PUBLIC_ANALYTICS_REMOTE_ENTRY_URL = "https://opshub-analytics.netlify.app/remoteEntry.js"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://opshub-api.netlify.app/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

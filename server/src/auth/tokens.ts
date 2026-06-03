@@ -66,11 +66,13 @@ export function parseRefreshToken(raw?: string): RefreshTokenParts | null {
 
 function refreshCookieBaseOptions(): CookieOptions {
   const domain = process.env.COOKIE_DOMAIN?.trim() || undefined;
+  const path = process.env.AUTH_COOKIE_PATH?.trim() || '/';
+
   return {
     httpOnly: true,
     sameSite: 'lax',
     secure: IS_PROD,
-    path: '/auth',
+    path,
     domain,
   };
 }

@@ -3,10 +3,11 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "build": "nuxt build",
+    "clean": "node -e \"const fs=require('node:fs'); for (const dir of ['.nuxt','.output','dist','node_modules/.cache/nuxt']) fs.rmSync(dir,{recursive:true,force:true});\"",
+    "build": "pnpm run clean && nuxt build",
     "typecheck": "nuxt typecheck",
     "dev": "nuxt dev --port 3000",
-    "generate": "nuxt generate",
+    "generate": "pnpm run clean && nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },

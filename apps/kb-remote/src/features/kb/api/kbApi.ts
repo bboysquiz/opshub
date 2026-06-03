@@ -7,7 +7,8 @@ import {
 } from '../infra/dexie';
 import { http } from './http';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.PROD ? '/api' : 'http://localhost:3001');
 const KB_CACHE_NAME = 'kb-articles-v1';
 
 export type ArticleListItem = {

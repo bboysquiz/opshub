@@ -1,9 +1,15 @@
 import { useRuntimeConfig } from '#imports';
 
-const DEFAULT_API_BASE_URL = 'http://localhost:3001';
-const DEFAULT_TICKETS_REMOTE_ENTRY_URL = 'http://localhost:3010/remoteEntry.js';
-const DEFAULT_KB_REMOTE_ENTRY_URL = 'http://localhost:3020/remoteEntry.js';
-const DEFAULT_ANALYTICS_REMOTE_ENTRY_URL = 'http://localhost:3030/remoteEntry.js';
+const DEFAULT_API_BASE_URL = import.meta.dev ? 'http://localhost:3001' : '/api';
+const DEFAULT_TICKETS_REMOTE_ENTRY_URL = import.meta.dev
+  ? 'http://localhost:3010/remoteEntry.js'
+  : 'https://opshub-tickets.netlify.app/remoteEntry.js';
+const DEFAULT_KB_REMOTE_ENTRY_URL = import.meta.dev
+  ? 'http://localhost:3020/remoteEntry.js'
+  : 'https://opshub-kb.netlify.app/remoteEntry.js';
+const DEFAULT_ANALYTICS_REMOTE_ENTRY_URL = import.meta.dev
+  ? 'http://localhost:3030/remoteEntry.js'
+  : 'https://opshub-analytics.netlify.app/remoteEntry.js';
 
 function normalizeRuntimeValue(value: unknown, fallback: string): string {
   return typeof value === 'string' && value.trim() ? value.trim() : fallback;

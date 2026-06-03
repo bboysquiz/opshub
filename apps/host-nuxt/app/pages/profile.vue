@@ -53,7 +53,7 @@ const slaDraft = reactive<SlaDraft>({
 });
 const slaSaving = ref(false);
 const adminRefreshIntervalMs = 30_000;
-let adminRefreshTimer: ReturnType<typeof window.setInterval> | null = null;
+let adminRefreshTimer: number | null = null;
 
 const userColumns = [
   { name: 'email', label: 'Email', field: 'email', align: 'left' as const },
@@ -90,14 +90,19 @@ function formatDateTime(value: string) {
 }
 
 function draftFor(user: AuthUser): UserDraft {
-  if (!userDrafts.value[user.id]) {
-    userDrafts.value[user.id] = {
-      role: user.role,
-      newTicketsTable: user.featureFlags.newTicketsTable,
-    };
+  const existingDraft = userDrafts.value[user.id];
+  if (existingDraft) {
+    return existingDraft;
   }
 
-  return userDrafts.value[user.id];
+  const draft = {
+    role: user.role,
+    newTicketsTable: user.featureFlags.newTicketsTable,
+  } satisfies UserDraft;
+
+  userDrafts.value[user.id] = draft;
+
+  return draft;
 }
 
 function isUserDraftDirty(user: AuthUser, draft: UserDraft) {
@@ -107,6 +112,13 @@ function isUserDraftDirty(user: AuthUser, draft: UserDraft) {
 function hasChanges(user: AuthUser) {
   const draft = draftFor(user);
   return isUserDraftDirty(user, draft);
+}
+
+function createDraftFromUser(user: AuthUser): UserDraft {
+  return {
+    role: user.role,
+    newTicketsTable: user.featureFlags.newTicketsTable,
+  };
 }
 
 function syncSlaDraft(value: SlaSettings) {
@@ -253,19 +265,11 @@ watch(
         const previousUser = previousById.get(user.id);
         const existingDraft = userDrafts.value[user.id];
         const shouldPreserveDraft =
-          Boolean(existingDraft) &&
-          Boolean(previousUser) &&
+          existingDraft !== undefined &&
+          previousUser !== undefined &&
           isUserDraftDirty(previousUser, existingDraft);
 
-        return [
-          user.id,
-          shouldPreserveDraft && existingDraft
-            ? existingDraft
-            : ({
-                role: user.role,
-                newTicketsTable: user.featureFlags.newTicketsTable,
-              } satisfies UserDraft),
-        ];
+        return [user.id, shouldPreserveDraft ? existingDraft : createDraftFromUser(user)];
       }),
     );
   },

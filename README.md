@@ -193,7 +193,7 @@ Backend env для Netlify site `server`:
 ```env
 DATABASE_URL=postgres://...
 JWT_ACCESS_SECRET=replace-with-long-random-secret
-CORS_ORIGIN=https://opshub.netlify.app,https://opshub-tickets-remote.netlify.app,https://opshub-kb-remote.netlify.app,https://opshub-analytics-remote.netlify.app
+CORS_ORIGIN=https://opshub-shell.netlify.app,https://opshub-tickets.netlify.app,https://opshub-kb.netlify.app,https://opshub-analytics.netlify.app
 VAPID_SUBJECT=mailto:you@example.com
 VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
@@ -202,20 +202,20 @@ VAPID_PRIVATE_KEY=
 Frontend env для remotes:
 
 ```env
-VITE_API_BASE_URL=https://opshub-api.netlify.app
+VITE_API_BASE_URL=/api
 ```
 
 Frontend env для host:
 
 ```env
-NUXT_PUBLIC_API_BASE_URL=https://opshub-api.netlify.app
-NUXT_PUBLIC_TICKETS_REMOTE_ENTRY_URL=https://opshub-tickets-remote.netlify.app/remoteEntry.js
-NUXT_PUBLIC_KB_REMOTE_ENTRY_URL=https://opshub-kb-remote.netlify.app/remoteEntry.js
-NUXT_PUBLIC_ANALYTICS_REMOTE_ENTRY_URL=https://opshub-analytics-remote.netlify.app/remoteEntry.js
+NUXT_PUBLIC_API_BASE_URL=/api
+NUXT_PUBLIC_TICKETS_REMOTE_ENTRY_URL=https://opshub-tickets.netlify.app/remoteEntry.js
+NUXT_PUBLIC_KB_REMOTE_ENTRY_URL=https://opshub-kb.netlify.app/remoteEntry.js
+NUXT_PUBLIC_ANALYTICS_REMOTE_ENTRY_URL=https://opshub-analytics.netlify.app/remoteEntry.js
 PNPM_FLAGS=--shamefully-hoist
 ```
 
-`DATABASE_URL`, `JWT_ACCESS_SECRET` и `VAPID_PRIVATE_KEY` указываются только на API-site. В frontend-sites добавляются только публичные URL-переменные.
+`DATABASE_URL`, `JWT_ACCESS_SECRET` и `VAPID_PRIVATE_KEY` указываются только на API-site. В frontend-sites добавляются только публичные URL-переменные. Для frontend API base лучше использовать `/api`, потому что `netlify.toml` проксирует `/api/*` на `opshub-api`; так refresh-cookie и CSRF остаются same-origin для браузера.
 
 ## Backend API
 
