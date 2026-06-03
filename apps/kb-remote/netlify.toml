@@ -6,6 +6,13 @@ publish = "apps/kb-remote/dist"
 NODE_VERSION = "22"
 PNPM_VERSION = "10.30.2"
 
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+
 [[redirects]]
 from = "/*"
 to = "/index.html"
