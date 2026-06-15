@@ -50,6 +50,10 @@ export function formatDateTime(value: string) {
   }).format(parsed);
 }
 
+export function formatOptionalDateTime(value: string | null | undefined) {
+  return value ? formatDateTime(value) : 'Не указан';
+}
+
 export function formatShortDate(value: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {

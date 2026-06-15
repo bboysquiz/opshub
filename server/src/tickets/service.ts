@@ -45,6 +45,7 @@ function mapTicket(row: TicketRow): TicketDto {
     createdByEmail: row.created_by_email,
     assignedTo: row.assigned_to,
     assignedToEmail: row.assigned_to_email,
+    dueAt: row.due_at,
     updatedAt: row.updated_at,
     createdAt: row.created_at,
   };

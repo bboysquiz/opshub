@@ -12,6 +12,7 @@ export type AnalyticsTicketRow = {
   priority: TicketPriority;
   created_at: Date | string;
   updated_at: Date | string;
+  due_at: Date | string | null;
   created_by: string | null;
   created_by_email: string | null;
   created_by_role: Role | null;
@@ -28,6 +29,7 @@ export type AnalyticsTicketDto = {
   priority: TicketPriority;
   createdAt: Date | string;
   updatedAt: Date | string;
+  dueAt: Date | string | null;
   createdBy: string | null;
   createdByEmail: string | null;
   createdByRole: Role | null;

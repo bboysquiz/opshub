@@ -22,6 +22,21 @@ class TicketsDb extends Dexie {
       queue: 'id, ticketId, type, status, createdAt',
       meta: 'key',
     });
+
+    this.version(2)
+      .stores({
+        tickets: 'id, updatedAt, dueAt, syncStatus, isDeleted',
+        queue: 'id, ticketId, type, status, createdAt',
+        meta: 'key',
+      })
+      .upgrade(async (transaction) => {
+        await transaction
+          .table<LocalTicket, string>('tickets')
+          .toCollection()
+          .modify((ticket) => {
+            ticket.dueAt ??= null;
+          });
+      });
   }
 }
 

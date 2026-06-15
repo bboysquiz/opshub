@@ -194,6 +194,7 @@ function buildMemoKey(
         ticket.assignedTeam,
         ticket.createdAt,
         ticket.updatedAt,
+        ticket.dueAt ?? '',
       ].join(':'),
     )
     .join('|');

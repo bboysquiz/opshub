@@ -12,6 +12,7 @@ export type AnalyticsTicket = {
   priority: TicketPriority;
   createdAt: string;
   updatedAt: string;
+  dueAt: string | null;
   createdBy: string | null;
   createdByEmail: string | null;
   createdByRole: 'admin' | 'agent' | 'employee' | null;

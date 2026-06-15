@@ -14,6 +14,7 @@ export async function listAnalyticsTickets(db: Queryable = pool): Promise<Analyt
        tickets.priority,
        tickets.created_at,
        tickets.updated_at,
+       tickets.due_at,
        tickets.created_by,
        creator.email as created_by_email,
        creator.role as created_by_role,

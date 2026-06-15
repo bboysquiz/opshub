@@ -14,6 +14,7 @@ const TICKET_COLUMNS = `
   creator.email as created_by_email,
   tickets.assigned_to,
   assignee.email as assigned_to_email,
+  tickets.due_at,
   tickets.updated_at,
   tickets.created_at
 `;
@@ -48,10 +49,17 @@ export async function createTicket(
   db: Queryable = pool,
 ): Promise<TicketRow> {
   const result = await db.query<{ id: string }>(
-    `insert into tickets (title, description, priority, created_by, assigned_to)
-     values ($1, $2, $3, $4, $5)
+    `insert into tickets (title, description, priority, created_by, assigned_to, due_at)
+     values ($1, $2, $3, $4, $5, $6)
      returning id`,
-    [args.title, args.description, args.priority, args.createdBy, args.assignedTo ?? null],
+    [
+      args.title,
+      args.description,
+      args.priority,
+      args.createdBy,
+      args.assignedTo ?? null,
+      args.dueAt ?? null,
+    ],
   );
 
   return getTicketById(result.rows[0].id, db) as Promise<TicketRow>;
@@ -88,6 +96,11 @@ export async function updateTicketById(
   if (patch.assignedTo !== undefined) {
     values.push(patch.assignedTo);
     updates.push(`assigned_to = $${values.length}`);
+  }
+
+  if (patch.dueAt !== undefined) {
+    values.push(patch.dueAt);
+    updates.push(`due_at = $${values.length}`);
   }
 
   if (updates.length === 0) return null;

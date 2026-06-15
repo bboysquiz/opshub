@@ -11,6 +11,7 @@ export type TicketRow = {
   created_by_email: string | null;
   assigned_to: string | null;
   assigned_to_email: string | null;
+  due_at: Date | string | null;
   updated_at: Date | string;
   created_at: Date | string;
 };
@@ -25,6 +26,7 @@ export type TicketDto = {
   createdByEmail: string | null;
   assignedTo: string | null;
   assignedToEmail: string | null;
+  dueAt: Date | string | null;
   updatedAt: Date | string;
   createdAt: Date | string;
 };
@@ -34,6 +36,7 @@ export type CreateTicketInput = {
   description: string;
   priority: TicketPriority;
   assignedTo?: string | null;
+  dueAt?: string | null;
 };
 
 export type UpdateTicketInput = {
@@ -42,4 +45,5 @@ export type UpdateTicketInput = {
   status?: TicketStatus;
   priority?: TicketPriority;
   assignedTo?: string | null;
+  dueAt?: string | null;
 };

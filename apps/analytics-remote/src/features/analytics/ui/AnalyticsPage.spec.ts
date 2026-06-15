@@ -34,6 +34,7 @@ const { authStore, analyticsStore, persistAnalyticsFilters, restoreAnalyticsFilt
           priority: 'high',
           createdAt: '2025-01-01T09:00:00.000Z',
           updatedAt: '2025-01-01T10:00:00.000Z',
+          dueAt: '2025-01-02T10:00:00.000Z',
           createdBy: 'user-1',
           createdByEmail: 'creator@example.com',
           createdByRole: 'employee',

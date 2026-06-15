@@ -33,6 +33,7 @@ function mapTicket(row: AnalyticsTicketRow): AnalyticsTicketDto {
     priority: row.priority,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    dueAt: row.due_at,
     createdBy: row.created_by,
     createdByEmail: row.created_by_email,
     createdByRole: row.created_by_role,

@@ -6,6 +6,7 @@ export const ticketsApi = {
     const data = await http<{ items: TicketDto[] }>('/tickets');
     return data.items.map((item) => ({
       ...item,
+      dueAt: item.dueAt ? String(item.dueAt) : null,
       updatedAt: String(item.updatedAt),
       createdAt: String(item.createdAt),
     }));
@@ -19,6 +20,7 @@ export const ticketsApi = {
 
     return {
       ...data,
+      dueAt: data.dueAt ? String(data.dueAt) : null,
       updatedAt: String(data.updatedAt),
       createdAt: String(data.createdAt),
     };
@@ -32,6 +34,7 @@ export const ticketsApi = {
 
     return {
       ...data,
+      dueAt: data.dueAt ? String(data.dueAt) : null,
       updatedAt: String(data.updatedAt),
       createdAt: String(data.createdAt),
     };

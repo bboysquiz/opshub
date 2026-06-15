@@ -12,6 +12,7 @@ export type TicketDto = {
   createdByEmail: string | null;
   assignedTo: string | null;
   assignedToEmail: string | null;
+  dueAt: string | null;
   updatedAt: string;
   createdAt: string;
 };
@@ -21,6 +22,7 @@ export type CreateTicketInput = {
   description: string;
   priority: TicketPriority;
   assignedTo?: string | null;
+  dueAt?: string | null;
 };
 
 export type UpdateTicketInput = {
@@ -29,6 +31,7 @@ export type UpdateTicketInput = {
   status?: TicketStatus;
   priority?: TicketPriority;
   assignedTo?: string | null;
+  dueAt?: string | null;
 };
 
 export type LocalTicket = TicketDto & {
@@ -60,6 +63,7 @@ export function toLocalTicket(
 ): LocalTicket {
   return {
     ...ticket,
+    dueAt: ticket.dueAt ? String(ticket.dueAt) : null,
     updatedAt: String(ticket.updatedAt),
     createdAt: String(ticket.createdAt),
     syncStatus: 'synced',

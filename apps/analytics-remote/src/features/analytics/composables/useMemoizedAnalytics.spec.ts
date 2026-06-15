@@ -11,6 +11,7 @@ function createTicket(overrides: Partial<AnalyticsTicket> = {}): AnalyticsTicket
     priority: 'high',
     createdAt: '2025-01-01T09:00:00.000Z',
     updatedAt: '2025-01-01T10:00:00.000Z',
+    dueAt: null,
     createdBy: 'user-1',
     createdByEmail: 'creator@example.com',
     createdByRole: 'employee',

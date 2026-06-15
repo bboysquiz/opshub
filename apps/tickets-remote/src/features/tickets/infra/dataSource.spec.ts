@@ -38,6 +38,7 @@ function createTicket(overrides: Partial<TicketDto> = {}): TicketDto {
     createdByEmail: 'creator@example.com',
     assignedTo: 'agent-1',
     assignedToEmail: 'agent@example.com',
+    dueAt: null,
     updatedAt: '2025-01-01T10:00:00.000Z',
     createdAt: '2025-01-01T09:00:00.000Z',
     ...overrides,

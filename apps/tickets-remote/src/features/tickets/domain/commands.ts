@@ -45,5 +45,6 @@ export function mergeCreatePayload(
     description: patch.description ?? current.description,
     priority: patch.priority ?? current.priority,
     assignedTo: patch.assignedTo ?? current.assignedTo ?? null,
+    dueAt: patch.dueAt === undefined ? (current.dueAt ?? null) : patch.dueAt,
   };
 }

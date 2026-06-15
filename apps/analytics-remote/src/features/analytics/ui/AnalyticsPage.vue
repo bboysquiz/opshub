@@ -29,6 +29,7 @@ import { downloadAnalyticsCsv } from '../utils/csv';
 import {
   formatDateTime,
   formatDuration,
+  formatOptionalDateTime,
   priorityColors,
   priorityLabels,
   statusColors,
@@ -71,6 +72,7 @@ const columns = [
   { name: 'priority', label: 'Приоритет', field: 'priority', align: 'left' as const },
   { name: 'response', label: 'Реакция', field: 'responseMinutes', align: 'left' as const },
   { name: 'sla', label: 'SLA', field: 'slaBreached', align: 'left' as const },
+  { name: 'dueAt', label: 'Срок', field: 'dueAt', align: 'left' as const },
   { name: 'createdAt', label: 'Создан', field: 'createdAt', align: 'left' as const },
 ];
 
@@ -635,6 +637,12 @@ onMounted(async () => {
             <q-badge :color="props.row.slaBreached ? 'negative' : 'positive'">
               {{ props.row.slaBreached ? 'Нарушение' : 'В SLA' }}
             </q-badge>
+          </q-td>
+        </template>
+
+        <template #body-cell-dueAt="props">
+          <q-td :props="props">
+            {{ formatOptionalDateTime(props.row.dueAt) }}
           </q-td>
         </template>
 

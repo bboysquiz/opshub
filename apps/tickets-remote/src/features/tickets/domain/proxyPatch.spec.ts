@@ -13,6 +13,7 @@ describe('proxyPatch', () => {
       createdByEmail: 'creator@example.com',
       assignedTo: 'agent-1',
       assignedToEmail: 'agent@example.com',
+      dueAt: null,
       updatedAt: '2025-01-01T09:00:00.000Z',
       createdAt: '2025-01-01T08:00:00.000Z',
     });
@@ -37,6 +38,7 @@ describe('proxyPatch', () => {
         status: 'open',
         priority: 'low',
         assignedTo: null,
+        dueAt: null,
       },
       {
         title: 'Тикет',

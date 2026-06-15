@@ -1,5 +1,12 @@
 import type { AnalyticsTicketViewModel } from '../domain/models';
-import { formatDateTime, formatDuration, priorityLabels, statusLabels, teamLabels } from './labels';
+import {
+  formatDateTime,
+  formatDuration,
+  formatOptionalDateTime,
+  priorityLabels,
+  statusLabels,
+  teamLabels,
+} from './labels';
 
 function escapeCsv(value: string) {
   return `"${value.replace(/"/g, '""')}"`;
@@ -15,6 +22,7 @@ export function downloadAnalyticsCsv(rows: AnalyticsTicketViewModel[]) {
     'Исполнитель',
     'Создан',
     'Обновлён',
+    'Срок выполнения',
     'Время реакции',
     'SLA',
   ];
@@ -28,6 +36,7 @@ export function downloadAnalyticsCsv(rows: AnalyticsTicketViewModel[]) {
     row.assignedToEmail ?? 'Не назначен',
     formatDateTime(row.createdAt),
     formatDateTime(row.updatedAt),
+    formatOptionalDateTime(row.dueAt),
     formatDuration(row.responseMinutes),
     row.slaBreached ? 'Нарушение' : 'В SLA',
   ]);

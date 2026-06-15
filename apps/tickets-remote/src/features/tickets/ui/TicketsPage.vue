@@ -80,6 +80,8 @@ const createTicketButtonRef = ref<{ focus?: () => void; $el?: HTMLElement } | nu
 const lastFocusedElement = ref<HTMLElement | null>(null);
 const updatedFromPopup = ref<{ hide?: () => void; show?: () => void } | null>(null);
 const updatedToPopup = ref<{ hide?: () => void; show?: () => void } | null>(null);
+const dueAtPopup = ref<{ hide?: () => void; show?: () => void } | null>(null);
+const detailsDueAtPopup = ref<{ hide?: () => void; show?: () => void } | null>(null);
 const syncProgressVisible = ref(false);
 const displayedSyncPercent = ref(0);
 const displayedSyncProcessed = ref(0);
@@ -138,6 +140,7 @@ const form = reactive({
   description: '',
   priority: 'medium' as TicketPriority,
   assignedTo: null as string | null,
+  dueAt: '',
 });
 
 const detailsForm = reactive({
@@ -146,6 +149,7 @@ const detailsForm = reactive({
   priority: 'medium' as TicketPriority,
   status: 'open' as TicketStatus,
   assignedTo: null as string | null,
+  dueAt: '',
 });
 
 const assignableUserOptions = computed(() =>
@@ -206,6 +210,13 @@ const columns = computed<QTableColumn<LocalTicket>[]>(() => {
       name: 'assignedTo',
       label: 'Назначен',
       field: (row) => assigneeLabel(row).toLowerCase(),
+      align: 'left',
+      sortable: true,
+    },
+    {
+      name: 'dueAt',
+      label: 'Срок',
+      field: dueAtSortValue,
       align: 'left',
       sortable: true,
     },
@@ -524,6 +535,64 @@ function formatDateTime(value: string) {
   }).format(parsed);
 }
 
+function formatOptionalDateTime(value: string | null | undefined) {
+  return value ? formatDateTime(value) : 'Не указан';
+}
+
+function toPickerDateTime(value: string | null | undefined) {
+  if (!value) {
+    return '';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '';
+  }
+
+  const pad = (part: number) => String(part).padStart(2, '0');
+
+  return [
+    `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}`,
+    `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`,
+  ].join(' ');
+}
+
+function toApiDueAt(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const timestamp = parseDateTimeFilter(trimmed);
+  if (timestamp === null) {
+    throw new Error('Нужно указать корректный срок выполнения');
+  }
+
+  return new Date(timestamp).toISOString();
+}
+
+function isOverdue(ticket: Pick<LocalTicket, 'dueAt' | 'status'>) {
+  if (!ticket.dueAt || ticket.status === 'resolved') {
+    return false;
+  }
+
+  const timestamp = new Date(ticket.dueAt).getTime();
+  return Number.isFinite(timestamp) && timestamp < Date.now();
+}
+
+function dueAtSortValue(ticket: Pick<LocalTicket, 'dueAt' | 'status'>) {
+  if (ticket.status === 'resolved') {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  if (!ticket.dueAt) {
+    return Number.MAX_SAFE_INTEGER - 1;
+  }
+
+  const timestamp = new Date(ticket.dueAt).getTime();
+  return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER - 1;
+}
+
 function priorityLabel(priority: TicketPriority) {
   return priorityLabels[priority];
 }
@@ -541,6 +610,7 @@ function resetForm() {
   form.description = '';
   form.priority = 'medium';
   form.assignedTo = null;
+  form.dueAt = '';
 }
 
 function resetDetailsForm(ticket: LocalTicket) {
@@ -549,6 +619,7 @@ function resetDetailsForm(ticket: LocalTicket) {
   detailsForm.priority = ticket.priority;
   detailsForm.status = ticket.status;
   detailsForm.assignedTo = ticket.assignedTo;
+  detailsForm.dueAt = toPickerDateTime(ticket.dueAt);
 }
 
 function focusComponent(target: { focus?: () => void; $el?: HTMLElement } | null) {
@@ -603,6 +674,7 @@ async function submit() {
       description: form.description,
       priority: form.priority,
       assignedTo: normalizeAssignedTo(form.assignedTo),
+      dueAt: toApiDueAt(form.dueAt),
     });
 
     notifySavedLocally('created');
@@ -629,10 +701,12 @@ async function submitViewedTicket() {
       priority: TicketPriority;
       status?: TicketStatus;
       assignedTo?: string | null;
+      dueAt?: string | null;
     } = {
       title: detailsForm.title,
       description: detailsForm.description,
       priority: detailsForm.priority,
+      dueAt: toApiDueAt(detailsForm.dueAt),
     };
 
     if (!viewingTicket.value.isLocalOnly) {
@@ -1160,6 +1234,15 @@ onBeforeUnmount(() => {
         </q-td>
       </template>
 
+      <template #body-cell-dueAt="slotProps">
+        <q-td :props="slotProps">
+          <q-badge v-if="isOverdue(slotProps.row)" color="negative">
+            {{ formatOptionalDateTime(slotProps.row.dueAt) }}
+          </q-badge>
+          <span v-else>{{ formatOptionalDateTime(slotProps.row.dueAt) }}</span>
+        </q-td>
+      </template>
+
       <template #body-cell-sync="slotProps">
         <q-td :props="slotProps">
           <q-badge :color="syncColor(slotProps.row.syncStatus)">
@@ -1278,6 +1361,12 @@ onBeforeUnmount(() => {
               />
             </div>
             <div>
+              <div class="text-caption text-grey-7">Срок выполнения</div>
+              <div>
+                {{ formatOptionalDateTime(viewingTicket.dueAt) }}
+              </div>
+            </div>
+            <div>
               <div class="text-caption text-grey-7">Автор</div>
               <div>{{ creatorLabel(viewingTicket) }}</div>
             </div>
@@ -1303,6 +1392,58 @@ onBeforeUnmount(() => {
               label="Заголовок"
               aria-label="Заголовок тикета"
             />
+            <q-input
+              v-if="canEditViewedTicket"
+              :model-value="detailsForm.dueAt"
+              outlined
+              readonly
+              placeholder="ГГГГ-ММ-ДД ЧЧ:ММ"
+              label="Срок выполнения"
+              aria-label="Срок выполнения тикета"
+              @click="detailsDueAtPopup?.show?.()"
+            >
+              <template #prepend>
+                <q-icon name="event" class="cursor-pointer">
+                  <q-popup-proxy
+                    ref="detailsDueAtPopup"
+                    cover
+                    transition-show="scale"
+                    transition-hide="scale"
+                  >
+                    <div class="bg-white q-pa-sm">
+                      <q-date v-model="detailsForm.dueAt" mask="YYYY-MM-DD HH:mm" minimal />
+                      <q-time v-model="detailsForm.dueAt" mask="YYYY-MM-DD HH:mm" format24h />
+                      <div class="row items-center justify-between q-mt-sm">
+                        <q-btn
+                          flat
+                          color="grey-7"
+                          label="Очистить"
+                          @click="detailsForm.dueAt = ''"
+                        />
+                        <q-btn
+                          flat
+                          color="primary"
+                          label="Закрыть"
+                          @click="detailsDueAtPopup?.hide?.()"
+                        />
+                      </div>
+                    </div>
+                  </q-popup-proxy>
+                </q-icon>
+              </template>
+
+              <template #append>
+                <q-btn
+                  v-if="detailsForm.dueAt"
+                  flat
+                  round
+                  dense
+                  icon="close"
+                  aria-label="Очистить срок выполнения"
+                  @click.stop="detailsForm.dueAt = ''"
+                />
+              </template>
+            </q-input>
             <q-input
               v-model="detailsForm.description"
               outlined
@@ -1377,6 +1518,48 @@ onBeforeUnmount(() => {
               :options="assignableUserOptions"
               aria-label="Исполнитель тикета"
             />
+
+            <q-input
+              :model-value="form.dueAt"
+              outlined
+              readonly
+              placeholder="ГГГГ-ММ-ДД ЧЧ:ММ"
+              label="Срок выполнения"
+              aria-label="Срок выполнения тикета"
+              @click="dueAtPopup?.show?.()"
+            >
+              <template #prepend>
+                <q-icon name="event" class="cursor-pointer">
+                  <q-popup-proxy
+                    ref="dueAtPopup"
+                    cover
+                    transition-show="scale"
+                    transition-hide="scale"
+                  >
+                    <div class="bg-white q-pa-sm">
+                      <q-date v-model="form.dueAt" mask="YYYY-MM-DD HH:mm" minimal />
+                      <q-time v-model="form.dueAt" mask="YYYY-MM-DD HH:mm" format24h />
+                      <div class="row items-center justify-between q-mt-sm">
+                        <q-btn flat color="grey-7" label="Очистить" @click="form.dueAt = ''" />
+                        <q-btn flat color="primary" label="Закрыть" @click="dueAtPopup?.hide?.()" />
+                      </div>
+                    </div>
+                  </q-popup-proxy>
+                </q-icon>
+              </template>
+
+              <template #append>
+                <q-btn
+                  v-if="form.dueAt"
+                  flat
+                  round
+                  dense
+                  icon="close"
+                  aria-label="Очистить срок выполнения"
+                  @click.stop="form.dueAt = ''"
+                />
+              </template>
+            </q-input>
 
             <div class="row justify-end q-gutter-sm">
               <q-btn v-close-popup flat label="Отмена" aria-label="Отменить изменения" />

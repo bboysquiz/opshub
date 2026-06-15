@@ -27,6 +27,7 @@ create table if not exists tickets (
   priority text not null default 'medium', -- low | medium | high
   created_by uuid references users(id),
   assigned_to uuid references users(id),
+  due_at timestamptz,
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );

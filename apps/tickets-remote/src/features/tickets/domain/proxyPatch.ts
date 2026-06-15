@@ -1,6 +1,6 @@
 import type { LocalTicket, UpdateTicketInput } from './models';
 
-const PATCH_KEYS = ['title', 'description', 'status', 'priority', 'assignedTo'] as const;
+const PATCH_KEYS = ['title', 'description', 'status', 'priority', 'assignedTo', 'dueAt'] as const;
 
 type TicketPatchKey = (typeof PATCH_KEYS)[number];
 type TicketPatchSnapshot = Pick<LocalTicket, TicketPatchKey>;
