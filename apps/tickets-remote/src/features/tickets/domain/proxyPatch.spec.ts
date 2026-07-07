@@ -5,6 +5,10 @@ describe('proxyPatch', () => {
   it('returns only changed fields from the candidate patch', () => {
     const current = toLocalTicket({
       id: 'ticket-1',
+      projectId: 'project-1',
+      projectName: 'Support',
+      spaceId: 'space-1',
+      spaceName: 'Ops',
       title: 'Старый заголовок',
       description: 'Описание',
       status: 'open',
@@ -33,6 +37,10 @@ describe('proxyPatch', () => {
   it('detects when there are no actual changes', () => {
     const patch = buildTicketUpdatePatch(
       {
+        projectId: 'project-1',
+        projectName: 'Support',
+        spaceId: 'space-1',
+        spaceName: 'Ops',
         title: 'Тикет',
         description: 'Описание',
         status: 'open',
@@ -41,6 +49,10 @@ describe('proxyPatch', () => {
         dueAt: null,
       },
       {
+        projectId: 'project-1',
+        projectName: 'Support',
+        spaceId: 'space-1',
+        spaceName: 'Ops',
         title: 'Тикет',
         description: 'Описание',
       },

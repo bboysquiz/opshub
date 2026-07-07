@@ -29,6 +29,13 @@ export default [
   },
 
   {
+    files: ['scripts/**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
+
+  {
     files: [
       'apps/host-nuxt/app/app.vue',
       'apps/host-nuxt/app/pages/**/*.vue',

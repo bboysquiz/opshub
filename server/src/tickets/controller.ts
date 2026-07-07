@@ -12,9 +12,13 @@ function handleTicketsError(err: unknown, res: Response): Response {
   return res.status(500).json({ message: 'Internal server error' });
 }
 
-export async function listTicketsHandler(_req: Request, res: Response): Promise<Response> {
+export async function listTicketsHandler(req: Request, res: Response): Promise<Response> {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
   try {
-    const tickets = await getTickets();
+    const tickets = await getTickets(req.user);
     return res.json({ items: tickets });
   } catch (err) {
     return handleTicketsError(err, res);

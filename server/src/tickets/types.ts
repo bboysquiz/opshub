@@ -3,6 +3,10 @@ export type TicketPriority = 'low' | 'medium' | 'high';
 
 export type TicketRow = {
   id: string;
+  project_id: string;
+  project_name: string;
+  space_id: string;
+  space_name: string;
   title: string;
   description: string;
   status: TicketStatus;
@@ -18,6 +22,10 @@ export type TicketRow = {
 
 export type TicketDto = {
   id: string;
+  projectId: string;
+  projectName: string;
+  spaceId: string;
+  spaceName: string;
   title: string;
   description: string;
   status: TicketStatus;
@@ -32,6 +40,7 @@ export type TicketDto = {
 };
 
 export type CreateTicketInput = {
+  projectId?: string;
   title: string;
   description: string;
   priority: TicketPriority;
@@ -40,6 +49,7 @@ export type CreateTicketInput = {
 };
 
 export type UpdateTicketInput = {
+  projectId?: string;
   title?: string;
   description?: string;
   status?: TicketStatus;

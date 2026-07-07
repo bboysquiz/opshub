@@ -1,5 +1,10 @@
 export type UserRole = 'admin' | 'agent' | 'employee';
-export type AuthPermission = 'viewAnalytics' | 'manageUsers' | 'updateTicket' | 'deleteTicket';
+export type AuthPermission =
+  | 'viewAnalytics'
+  | 'manageUsers'
+  | 'manageWorkspaces'
+  | 'updateTicket'
+  | 'deleteTicket';
 
 export type FeatureFlags = {
   newTicketsTable: boolean;
@@ -42,8 +47,8 @@ export const featureFlagLabels: Record<keyof FeatureFlags, string> = {
 };
 
 const permissionMatrix: Record<UserRole, AuthPermission[]> = {
-  admin: ['viewAnalytics', 'manageUsers', 'updateTicket', 'deleteTicket'],
-  agent: ['viewAnalytics', 'updateTicket'],
+  admin: ['viewAnalytics', 'manageUsers', 'manageWorkspaces', 'updateTicket', 'deleteTicket'],
+  agent: ['viewAnalytics', 'manageWorkspaces', 'updateTicket'],
   employee: [],
 };
 

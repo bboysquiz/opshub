@@ -15,8 +15,10 @@ import {
 import {
   createTicket,
   deleteTicketById,
-  getTicketById,
-  listTickets,
+  findFirstProjectIdForActor,
+  getTicketByIdForActor,
+  isProjectMember,
+  listTicketsForActor,
   updateTicketById,
 } from './repository';
 import { TicketsError } from './errors';
@@ -37,6 +39,10 @@ const ticketStatusLabels: Record<TicketStatus, string> = {
 function mapTicket(row: TicketRow): TicketDto {
   return {
     id: row.id,
+    projectId: row.project_id,
+    projectName: row.project_name,
+    spaceId: row.space_id,
+    spaceName: row.space_name,
     title: row.title,
     description: row.description,
     status: row.status,
@@ -55,9 +61,38 @@ function isFkViolation(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23503';
 }
 
-export async function getTickets(): Promise<TicketDto[]> {
-  const rows = await listTickets();
+export async function getTickets(actor: AccessPayload): Promise<TicketDto[]> {
+  const rows = await listTicketsForActor(actor.sub);
   return rows.map(mapTicket);
+}
+
+async function resolveTicketProjectId(actor: AccessPayload, projectId?: string): Promise<string> {
+  if (projectId) {
+    if (!(await isProjectMember(projectId, actor.sub))) {
+      throw new TicketsError(403, 'Forbidden project');
+    }
+
+    return projectId;
+  }
+
+  const fallbackProjectId = await findFirstProjectIdForActor(actor.sub);
+  if (!fallbackProjectId) {
+    throw new TicketsError(400, 'Project is required');
+  }
+
+  return fallbackProjectId;
+}
+
+async function assertProjectMember(
+  projectId: string,
+  userId: string,
+  message: string,
+): Promise<void> {
+  if (await isProjectMember(projectId, userId)) {
+    return;
+  }
+
+  throw new TicketsError(400, message);
 }
 
 export async function createTicketRecord(
@@ -65,7 +100,12 @@ export async function createTicketRecord(
   payload: CreateTicketInput,
 ): Promise<TicketDto> {
   try {
-    const row = await createTicket({ ...payload, createdBy: actor.sub });
+    const projectId = await resolveTicketProjectId(actor, payload.projectId);
+    if (payload.assignedTo) {
+      await assertProjectMember(projectId, payload.assignedTo, 'Invalid assignedTo project member');
+    }
+
+    const row = await createTicket({ ...payload, projectId, createdBy: actor.sub });
     await logTicketCreatedActivity({
       actorId: actor.sub,
       actorEmail: actor.email,
@@ -126,7 +166,7 @@ export async function updateTicketRecord(
   actor: AccessPayload,
 ): Promise<TicketDto> {
   try {
-    const previous = await getTicketById(id);
+    const previous = await getTicketByIdForActor(id, actor.sub);
     if (!previous) {
       throw new TicketsError(404, 'Ticket not found');
     }
@@ -137,6 +177,16 @@ export async function updateTicketRecord(
 
     if (actor.role === 'employee' && patch.assignedTo !== undefined) {
       throw new TicketsError(403, 'Forbidden');
+    }
+
+    const nextProjectId = patch.projectId ?? previous.project_id;
+    if (patch.projectId !== undefined && !(await isProjectMember(patch.projectId, actor.sub))) {
+      throw new TicketsError(403, 'Forbidden project');
+    }
+
+    const nextAssigneeId = patch.assignedTo !== undefined ? patch.assignedTo : previous.assigned_to;
+    if (nextAssigneeId) {
+      await assertProjectMember(nextProjectId, nextAssigneeId, 'Invalid assignedTo project member');
     }
 
     const row = await updateTicketById(id, patch);
@@ -212,7 +262,7 @@ export async function updateTicketRecord(
 }
 
 export async function deleteTicketRecord(id: string, actor: AccessPayload): Promise<void> {
-  const existing = await getTicketById(id);
+  const existing = await getTicketByIdForActor(id, actor.sub);
   if (!existing) {
     throw new TicketsError(404, 'Ticket not found');
   }

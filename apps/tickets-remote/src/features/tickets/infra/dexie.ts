@@ -37,6 +37,24 @@ class TicketsDb extends Dexie {
             ticket.dueAt ??= null;
           });
       });
+
+    this.version(3)
+      .stores({
+        tickets: 'id, projectId, spaceId, updatedAt, dueAt, syncStatus, isDeleted',
+        queue: 'id, ticketId, type, status, createdAt',
+        meta: 'key',
+      })
+      .upgrade(async (transaction) => {
+        await transaction
+          .table<LocalTicket, string>('tickets')
+          .toCollection()
+          .modify((ticket) => {
+            ticket.projectId ??= '';
+            ticket.projectName ??= '';
+            ticket.spaceId ??= '';
+            ticket.spaceName ??= '';
+          });
+      });
   }
 }
 

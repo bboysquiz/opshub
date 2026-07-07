@@ -5,6 +5,7 @@ export const ticketIdParamsSchema = z.object({
 });
 
 export const createTicketSchema = z.object({
+  projectId: z.string().uuid().optional(),
   title: z.string().trim().min(1),
   description: z.string().optional().default(''),
   priority: z.enum(['low', 'medium', 'high']).optional().default('medium'),
@@ -14,6 +15,7 @@ export const createTicketSchema = z.object({
 
 export const updateTicketSchema = z
   .object({
+    projectId: z.string().uuid().optional(),
     title: z.string().trim().min(1).optional(),
     description: z.string().optional(),
     status: z.enum(['open', 'in_progress', 'resolved']).optional(),
@@ -23,6 +25,7 @@ export const updateTicketSchema = z
   })
   .refine(
     (data) =>
+      data.projectId !== undefined ||
       data.title !== undefined ||
       data.description !== undefined ||
       data.status !== undefined ||

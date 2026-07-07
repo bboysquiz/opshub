@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite build && concurrently -k -n build,serve \"vite build --watch\" \"vite preview --strictPort --port 3030\"",
     "build": "vue-tsc -b && vite build",
+    "netlify:build": "pnpm run build && node ../../scripts/write-netlify-redirects.mjs dist --spa",
     "typecheck": "vue-tsc -b --pretty false",
     "preview": "vite preview"
   },

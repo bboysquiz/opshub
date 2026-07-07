@@ -11,7 +11,7 @@ import {
   type UpdateTicketCommand,
 } from './commands';
 import { emitSyncEvent } from './events';
-import { nowIso, toErrorMessage, toLocalTicket } from './models';
+import { nowIso, toErrorMessage, toLocalTicket, type LocalTicket } from './models';
 
 async function emitQueueChanged() {
   emitSyncEvent('queue-changed', {
@@ -19,7 +19,63 @@ async function emitQueueChanged() {
   });
 }
 
-async function markFailed(command: SyncCommand, message: string) {
+function readErrorStatus(error: unknown) {
+  if (typeof error !== 'object' || error === null || !('status' in error)) {
+    return undefined;
+  }
+
+  const { status } = error as { status?: unknown };
+  return typeof status === 'number' ? status : undefined;
+}
+
+function isProjectAccessError(error: unknown) {
+  const status = readErrorStatus(error);
+  const message = toErrorMessage(error).toLowerCase();
+
+  return status === 403 && message.includes('forbidden project');
+}
+
+function commandProjectId(command: SyncCommand, localTicket: LocalTicket | null) {
+  if (command.type === 'delete') {
+    return localTicket?.projectId ?? '';
+  }
+
+  return command.payload.projectId ?? localTicket?.projectId ?? '';
+}
+
+function commandProjectName(command: SyncCommand, localTicket: LocalTicket | null) {
+  if (command.type === 'delete') {
+    return localTicket?.projectName ?? '';
+  }
+
+  return command.payload.projectName ?? localTicket?.projectName ?? '';
+}
+
+function buildProjectAccessMessage(command: SyncCommand, localTicket: LocalTicket | null) {
+  const projectName = commandProjectName(command, localTicket);
+  const projectHint = projectName ? ` «${projectName}»` : '';
+
+  return [
+    `Доступ к проекту${projectHint} отозван или проект недоступен.`,
+    'Локальные изменения сохранены и не будут потеряны.',
+    'Выберите доступный проект и повторите синхронизацию.',
+  ].join(' ');
+}
+
+async function getSyncErrorMessage(error: unknown, command: SyncCommand) {
+  if (!isProjectAccessError(error)) {
+    return toErrorMessage(error);
+  }
+
+  const localTicket = await ticketsDb.tickets.get(command.ticketId);
+  return buildProjectAccessMessage(command, localTicket ?? null);
+}
+
+async function markFailed(
+  command: SyncCommand,
+  message: string,
+  knownLocalTicket?: LocalTicket | null,
+) {
   await ticketsDb.queue.put({
     ...command,
     status: 'failed',
@@ -28,7 +84,10 @@ async function markFailed(command: SyncCommand, message: string) {
   });
   await emitQueueChanged();
 
-  const localTicket = await ticketsDb.tickets.get(command.ticketId);
+  const localTicket =
+    knownLocalTicket === undefined
+      ? await ticketsDb.tickets.get(command.ticketId)
+      : knownLocalTicket;
   if (!localTicket) return;
 
   await ticketsDb.tickets.put({
@@ -125,8 +184,12 @@ async function processUpdate(command: UpdateTicketCommand) {
   const serverTicket = await getServerTicket(command.ticketId);
 
   if (!serverTicket) {
-    await markFailed(command, 'Тикет не найден на сервере');
-    return false;
+    const localTicket = (await ticketsDb.tickets.get(command.ticketId)) ?? null;
+    const message = commandProjectId(command, localTicket)
+      ? buildProjectAccessMessage(command, localTicket)
+      : 'Тикет не найден на сервере';
+
+    throw new Error(message);
   }
 
   if (command.baseUpdatedAt && serverTicket.updatedAt !== command.baseUpdatedAt) {
@@ -220,7 +283,7 @@ export async function flushPendingCommands() {
           }
         }
       } catch (processError) {
-        syncError = toErrorMessage(processError);
+        syncError = await getSyncErrorMessage(processError, processingCommand);
 
         if (isNetworkLikeError(processError)) {
           connectivityLost = true;

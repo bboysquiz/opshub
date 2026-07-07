@@ -1,17 +1,12 @@
 [build]
-command = "pnpm --filter kb-remote build"
-publish = "apps/kb-remote/dist"
+  command = "pnpm --filter kb-remote netlify:build"
+  publish = "apps/kb-remote/dist"
 
 [build.environment]
-NODE_VERSION = "22"
-PNPM_VERSION = "10.30.2"
-VITE_API_BASE_URL = "/api"
-
-[[redirects]]
-from = "/api/*"
-to = "https://opshub-api.netlify.app/:splat"
-status = 200
-force = true
+  NODE_VERSION = "22"
+  PNPM_VERSION = "10.30.2"
+  VITE_API_BASE_URL = "/api"
+  NETLIFY_API_PROXY_URL = "https://opshub-api.netlify.app"
 
 [[headers]]
   for = "/*"
@@ -19,8 +14,3 @@ force = true
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type"
-
-[[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200

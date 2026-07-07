@@ -180,13 +180,15 @@ Host загружает remotes на клиенте:
 
 Настройки sites:
 
-| Site             | Project to deploy       | Build command                          | Publish directory               |
-| ---------------- | ----------------------- | -------------------------------------- | ------------------------------- |
-| API              | `server`                | `pnpm --filter server netlify:build`   | `server/public`                 |
-| Host             | `apps/host-nuxt`        | `pnpm --filter host-nuxt generate`     | `apps/host-nuxt/.output/public` |
-| Tickets remote   | `apps/tickets-remote`   | `pnpm --filter tickets-remote build`   | `apps/tickets-remote/dist`      |
-| KB remote        | `apps/kb-remote`        | `pnpm --filter kb-remote build`        | `apps/kb-remote/dist`           |
-| Analytics remote | `apps/analytics-remote` | `pnpm --filter analytics-remote build` | `apps/analytics-remote/dist`    |
+| Site             | Project to deploy       | Build command                                  | Publish directory               |
+| ---------------- | ----------------------- | ---------------------------------------------- | ------------------------------- |
+| API              | `server`                | `pnpm --filter server netlify:build`           | `server/public`                 |
+| Host             | `apps/host-nuxt`        | `pnpm --filter host-nuxt netlify:build`        | `apps/host-nuxt/.output/public` |
+| Tickets remote   | `apps/tickets-remote`   | `pnpm --filter tickets-remote netlify:build`   | `apps/tickets-remote/dist`      |
+| KB remote        | `apps/kb-remote`        | `pnpm --filter kb-remote netlify:build`        | `apps/kb-remote/dist`           |
+| Analytics remote | `apps/analytics-remote` | `pnpm --filter analytics-remote netlify:build` | `apps/analytics-remote/dist`    |
+
+Host publish directory должен оставаться `apps/host-nuxt/.output/public`: `host-nuxt` на Netlify собирается через `nuxt generate`, а `netlify:build` дополнительно пишет `_redirects` для `/api/*` и SPA fallback. Если указать `dist`, Netlify может открыть deploy preview без актуального host build и без рабочего proxy к API.
 
 Backend env для Netlify site `server`:
 
@@ -203,6 +205,7 @@ Frontend env для remotes:
 
 ```env
 VITE_API_BASE_URL=/api
+NETLIFY_API_PROXY_URL=https://opshub-api.netlify.app
 ```
 
 Frontend env для host:
@@ -212,10 +215,24 @@ NUXT_PUBLIC_API_BASE_URL=/api
 NUXT_PUBLIC_TICKETS_REMOTE_ENTRY_URL=https://opshub-tickets.netlify.app/remoteEntry.js
 NUXT_PUBLIC_KB_REMOTE_ENTRY_URL=https://opshub-kb.netlify.app/remoteEntry.js
 NUXT_PUBLIC_ANALYTICS_REMOTE_ENTRY_URL=https://opshub-analytics.netlify.app/remoteEntry.js
+NETLIFY_API_PROXY_URL=https://opshub-api.netlify.app
 PNPM_FLAGS=--shamefully-hoist
 ```
 
-`DATABASE_URL`, `JWT_ACCESS_SECRET` и `VAPID_PRIVATE_KEY` указываются только на API-site. В frontend-sites добавляются только публичные URL-переменные. Для frontend API base лучше использовать `/api`, потому что `netlify.toml` проксирует `/api/*` на `opshub-api`; так refresh-cookie и CSRF остаются same-origin для браузера.
+`DATABASE_URL`, `JWT_ACCESS_SECRET` и `VAPID_PRIVATE_KEY` указываются только на API-site. В frontend-sites добавляются только публичные URL-переменные и `NETLIFY_API_PROXY_URL`. Для frontend API base лучше использовать `/api`: во время `netlify:build` frontend-sites генерируют `_redirects`, который проксирует `/api/*` на `NETLIFY_API_PROXY_URL`. Так refresh-cookie и CSRF остаются same-origin для браузера, а preview/staging можно направить на отдельный API-site без правки кода.
+
+Для preview/staging задайте отдельные context env в Netlify:
+
+- API-site: `DATABASE_URL` должен указывать на preview/staging БД, потому что `pnpm --filter server netlify:build` запускает `typecheck:netlify` и `migrate`.
+- Frontend-sites: `NETLIFY_API_PROXY_URL` должен указывать на preview/staging API URL, например `https://staging--opshub-api.netlify.app`.
+- Host: `NUXT_PUBLIC_TICKETS_REMOTE_ENTRY_URL`, `NUXT_PUBLIC_KB_REMOTE_ENTRY_URL` и `NUXT_PUBLIC_ANALYTICS_REMOTE_ENTRY_URL` должны указывать на preview/staging remotes.
+
+Preview/staging smoke-check:
+
+1. Сначала задеплойте API-site: build должен завершиться после миграций, а `/` или `/health` на API URL должен вернуть JSON с `ok: true`.
+2. Затем задеплойте remotes и host с context env на тот же preview/staging API-site.
+3. Откройте host deploy preview в новой вкладке: `/` должен показать shell, прямой переход на `/tickets`, `/kb`, `/analytics` или `/spaces` не должен давать 404.
+4. Откройте `/api/health` на host URL: ответ `{"ok":true}` подтверждает, что host `_redirects` проксирует API в текущем preview/staging окружении.
 
 ## Backend API
 
@@ -223,6 +240,7 @@ PNPM_FLAGS=--shamefully-hoist
 
 - `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /me`
 - `GET /csrf`
+- `GET /`
 - `GET /health`
 - `GET /tickets`, `POST /tickets`, `PATCH /tickets/:id`, `DELETE /tickets/:id`
 - `GET /kb/articles`, `GET /kb/articles/search`, `GET /kb/articles/:slug`

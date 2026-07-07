@@ -8,6 +8,7 @@
     "typecheck": "nuxt typecheck",
     "dev": "nuxt dev --port 3000",
     "generate": "pnpm run clean && nuxt generate",
+    "netlify:build": "pnpm run generate && node ../../scripts/write-netlify-redirects.mjs .output/public --spa",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },

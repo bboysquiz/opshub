@@ -1,18 +1,27 @@
 [build]
-command = "pnpm --filter server netlify:build"
-functions = "server/netlify/functions"
-publish = "server/public"
+  command = "pnpm --filter server netlify:build"
+  functions = "server/netlify/functions"
+  publish = "server/public"
 
 [build.environment]
-NODE_VERSION = "22"
-PNPM_VERSION = "10.30.2"
+  NODE_VERSION = "22"
+  PNPM_VERSION = "10.30.2"
+
+[context.deploy-preview]
+  command = "pnpm --filter server netlify:build"
+
+[context.branch-deploy]
+  command = "pnpm --filter server netlify:build"
+
+[context.staging]
+  command = "pnpm --filter server netlify:build"
 
 [functions]
-external_node_modules = ["bcrypt"]
-node_bundler = "esbuild"
+  external_node_modules = ["bcrypt"]
+  node_bundler = "esbuild"
 
 [[redirects]]
-from = "/*"
-to = "/.netlify/functions/api/:splat"
-status = 200
-force = true
+  from = "/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true

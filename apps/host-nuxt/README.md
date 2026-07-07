@@ -1,75 +1,41 @@
-# Nuxt Minimal Starter
+# OpsHub Host
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Nuxt host-shell для OpsHub. Host собирается как статический Netlify site через `nuxt generate`, публикует `.output/public`, подключает remote entry-файлы и обращается к backend через same-origin `/api`.
 
-## Setup
+## Netlify
 
-Make sure to install dependencies:
+Создавайте отдельный Netlify site с `Project to deploy` = `apps/host-nuxt`.
 
-```bash
-# npm
-npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
+```toml
+[build]
+  command = "pnpm --filter host-nuxt netlify:build"
+  publish = "apps/host-nuxt/.output/public"
 ```
 
-## Development Server
+`netlify:build` делает две вещи:
 
-Start the development server on `http://localhost:3000`:
+- генерирует статический host в `.output/public`;
+- записывает `.output/public/_redirects` с `/api/* -> NETLIFY_API_PROXY_URL/:splat` и SPA fallback `/* -> /index.html`.
 
-```bash
-# npm
-npm run dev
+Обязательные env для production/preview/staging:
 
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
+```env
+NUXT_PUBLIC_API_BASE_URL=/api
+NETLIFY_API_PROXY_URL=https://opshub-api.netlify.app
+NUXT_PUBLIC_TICKETS_REMOTE_ENTRY_URL=https://opshub-tickets.netlify.app/remoteEntry.js
+NUXT_PUBLIC_KB_REMOTE_ENTRY_URL=https://opshub-kb.netlify.app/remoteEntry.js
+NUXT_PUBLIC_ANALYTICS_REMOTE_ENTRY_URL=https://opshub-analytics.netlify.app/remoteEntry.js
+PNPM_FLAGS=--shamefully-hoist
 ```
 
-## Production
+Для preview/staging переопределяйте `NETLIFY_API_PROXY_URL` на preview/staging API-site, а `NUXT_PUBLIC_*_REMOTE_ENTRY_URL` на соответствующие preview/staging remotes.
 
-Build the application for production:
+## Smoke Check
 
-```bash
-# npm
-npm run build
+После деплоя откройте host deploy URL в новой вкладке и проверьте:
 
-# pnpm
-pnpm build
+- `/` открывает приложение, а прямой переход на `/tickets`, `/kb`, `/analytics`, `/spaces` не дает 404;
+- `/api/health` на host URL возвращает `{"ok":true}` через Netlify proxy;
+- вкладки с remotes загружаются из `NUXT_PUBLIC_*_REMOTE_ENTRY_URL`.
 
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+Если `/api/health` не отвечает, проверьте `NETLIFY_API_PROXY_URL` на host site и `DATABASE_URL`/миграции на API-site.

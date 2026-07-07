@@ -37,6 +37,11 @@ type AssignableUserRow = {
   role: Role;
 };
 
+export type AssignmentUsersScope = {
+  spaceId?: string;
+  projectId?: string;
+};
+
 type RefreshSessionDbRow = {
   id: string;
   user_id: string;
@@ -165,8 +170,43 @@ export async function listUsersForAdmin(db: Queryable = pool): Promise<UserMe[]>
 }
 
 export async function listUsersForAssignment(
+  scope: AssignmentUsersScope = {},
   db: Queryable = pool,
 ): Promise<Array<{ id: string; email: string; role: Role }>> {
+  if (scope.projectId) {
+    const result = await db.query<AssignableUserRow>(
+      `select users.id, users.email, users.role
+       from project_members
+       join users on users.id = project_members.user_id
+       where project_members.project_id = $1
+       order by users.created_at asc`,
+      [scope.projectId],
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      role: row.role,
+    }));
+  }
+
+  if (scope.spaceId) {
+    const result = await db.query<AssignableUserRow>(
+      `select users.id, users.email, users.role
+       from space_members
+       join users on users.id = space_members.user_id
+       where space_members.space_id = $1
+       order by users.created_at asc`,
+      [scope.spaceId],
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      email: row.email,
+      role: row.role,
+    }));
+  }
+
   const result = await db.query<AssignableUserRow>(
     `select id, email, role
      from users

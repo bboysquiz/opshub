@@ -6,6 +6,10 @@ type Queryable = Pick<PoolClient, 'query'>;
 
 const TICKET_COLUMNS = `
   tickets.id,
+  tickets.project_id,
+  projects.name as project_name,
+  projects.space_id,
+  spaces.name as space_name,
   tickets.title,
   tickets.description,
   tickets.status,
@@ -22,19 +26,32 @@ const TICKET_COLUMNS = `
 function baseTicketQuery() {
   return `select ${TICKET_COLUMNS}
      from tickets
+     join projects on projects.id = tickets.project_id
+     join spaces on spaces.id = projects.space_id
      left join users creator on creator.id = tickets.created_by
      left join users assignee on assignee.id = tickets.assigned_to`;
 }
 
-export async function listTickets(db: Queryable = pool): Promise<TicketRow[]> {
+export async function listTicketsForActor(
+  actorId: string,
+  db: Queryable = pool,
+): Promise<TicketRow[]> {
   const result = await db.query<TicketRow>(
     `${baseTicketQuery()}
-     order by created_at desc`,
+     where exists (
+       select 1
+       from project_members
+       where project_members.project_id = tickets.project_id
+         and project_members.user_id = $1
+     )
+     order by tickets.created_at desc`,
+    [actorId],
   );
+
   return result.rows;
 }
 
-export async function getTicketById(id: string, db: Queryable = pool): Promise<TicketRow | null> {
+async function getTicketById(id: string, db: Queryable = pool): Promise<TicketRow | null> {
   const result = await db.query<TicketRow>(
     `${baseTicketQuery()}
      where tickets.id = $1`,
@@ -44,13 +61,69 @@ export async function getTicketById(id: string, db: Queryable = pool): Promise<T
   return result.rowCount ? result.rows[0] : null;
 }
 
+export async function getTicketByIdForActor(
+  id: string,
+  actorId: string,
+  db: Queryable = pool,
+): Promise<TicketRow | null> {
+  const result = await db.query<TicketRow>(
+    `${baseTicketQuery()}
+     where tickets.id = $1
+       and exists (
+         select 1
+         from project_members
+         where project_members.project_id = tickets.project_id
+           and project_members.user_id = $2
+       )`,
+    [id, actorId],
+  );
+
+  return result.rowCount ? result.rows[0] : null;
+}
+
+export async function findFirstProjectIdForActor(
+  actorId: string,
+  db: Queryable = pool,
+): Promise<string | null> {
+  const result = await db.query<{ id: string }>(
+    `select projects.id
+     from projects
+     join project_members on project_members.project_id = projects.id
+     where project_members.user_id = $1
+       and projects.archived_at is null
+     order by projects.created_at asc, projects.id asc
+     limit 1`,
+    [actorId],
+  );
+
+  return result.rowCount ? result.rows[0].id : null;
+}
+
+export async function isProjectMember(
+  projectId: string,
+  userId: string,
+  db: Queryable = pool,
+): Promise<boolean> {
+  const result = await db.query<{ exists: boolean }>(
+    `select exists (
+       select 1
+       from project_members
+       where project_id = $1
+         and user_id = $2
+     )`,
+    [projectId, userId],
+  );
+
+  return result.rows[0]?.exists ?? false;
+}
+
 export async function createTicket(
-  args: CreateTicketInput & { createdBy: string },
+  args: CreateTicketInput & { createdBy: string; projectId: string },
   db: Queryable = pool,
 ): Promise<TicketRow> {
   const result = await db.query<{ id: string }>(
-    `insert into tickets (title, description, priority, created_by, assigned_to, due_at)
-     values ($1, $2, $3, $4, $5, $6)
+    `insert into tickets (title, description, priority, created_by, assigned_to, due_at, project_id)
+     values ($1, $2, $3, $4, $5, $6, $7)
      returning id`,
     [
       args.title,
@@ -59,6 +132,7 @@ export async function createTicket(
       args.createdBy,
       args.assignedTo ?? null,
       args.dueAt ?? null,
+      args.projectId,
     ],
   );
 
@@ -72,6 +146,11 @@ export async function updateTicketById(
 ): Promise<TicketRow | null> {
   const updates: string[] = [];
   const values: Array<string | null> = [];
+
+  if (patch.projectId !== undefined) {
+    values.push(patch.projectId);
+    updates.push(`project_id = $${values.length}`);
+  }
 
   if (patch.title !== undefined) {
     values.push(patch.title);

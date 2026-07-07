@@ -102,6 +102,7 @@ export const useAuthStore = defineStore('host-auth', () => {
   const featureFlags = computed(() => normalizeFeatureFlags(currentUser.value?.featureFlags));
   const canViewAnalytics = computed(() => hasPermission(role.value, 'viewAnalytics'));
   const canManageUsers = computed(() => hasPermission(role.value, 'manageUsers'));
+  const canManageWorkspaces = computed(() => hasPermission(role.value, 'manageWorkspaces'));
   const canUpdateTickets = computed(() => hasPermission(role.value, 'updateTicket'));
   const canDeleteTickets = computed(() => hasPermission(role.value, 'deleteTicket'));
 
@@ -457,6 +458,7 @@ export const useAuthStore = defineStore('host-auth', () => {
     featureFlags,
     canViewAnalytics,
     canManageUsers,
+    canManageWorkspaces,
     canUpdateTickets,
     canDeleteTickets,
     can,

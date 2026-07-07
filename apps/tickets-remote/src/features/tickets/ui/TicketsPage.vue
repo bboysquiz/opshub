@@ -23,10 +23,17 @@ import {
 } from 'quasar';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useAuthStore } from '../../../stores/auth';
+import { spacesApi, type TicketProjectOption } from '../api/spacesApi';
 import { usersApi, type AssignableUser } from '../api/usersApi';
 import { useSyncStore } from '../stores/sync';
 import { useTicketsStore } from '../stores/tickets';
-import type { LocalSyncStatus, LocalTicket, TicketPriority, TicketStatus } from '../domain/models';
+import type {
+  LocalSyncStatus,
+  LocalTicket,
+  TicketPriority,
+  TicketStatus,
+  UpdateTicketInput,
+} from '../domain/models';
 import TicketsErrorState from './TicketsErrorState.vue';
 import { useTicketsNotify } from './useTicketsNotify';
 
@@ -76,6 +83,7 @@ const dialogOpen = ref(false);
 const detailsDialogOpen = ref(false);
 const viewingTicket = ref<LocalTicket | null>(null);
 const assignableUsers = ref<AssignableUser[]>([]);
+const projectOptions = ref<TicketProjectOption[]>([]);
 const createTicketButtonRef = ref<{ focus?: () => void; $el?: HTMLElement } | null>(null);
 const lastFocusedElement = ref<HTMLElement | null>(null);
 const updatedFromPopup = ref<{ hide?: () => void; show?: () => void } | null>(null);
@@ -94,6 +102,8 @@ const filters = reactive({
   title: '',
   priority: null as TicketPriority | null,
   status: null as TicketStatus | null,
+  spaceId: null as string | null,
+  projectId: null as string | null,
   assignedTo: null as string | '__unassigned__' | null,
   syncStatus: null as LocalSyncStatus | null,
   updatedFrom: '',
@@ -136,6 +146,7 @@ const syncFilterOptions: Array<{ label: string; value: LocalSyncStatus }> = [
 ];
 
 const form = reactive({
+  projectId: '',
   title: '',
   description: '',
   priority: 'medium' as TicketPriority,
@@ -144,6 +155,7 @@ const form = reactive({
 });
 
 const detailsForm = reactive({
+  projectId: '',
   title: '',
   description: '',
   priority: 'medium' as TicketPriority,
@@ -151,6 +163,55 @@ const detailsForm = reactive({
   assignedTo: null as string | null,
   dueAt: '',
 });
+
+const projectSelectOptions = computed(() =>
+  projectOptions.value.map((project) => ({
+    label: `${project.spaceName} / ${project.projectName}`,
+    value: project.projectId,
+  })),
+);
+
+const spaceFilterOptions = computed(() => {
+  const options = new Map<string, string>();
+
+  for (const project of projectOptions.value) {
+    options.set(project.spaceId, project.spaceName);
+  }
+
+  return [...options.entries()]
+    .sort((left, right) => left[1].localeCompare(right[1], 'ru'))
+    .map(([value, label]) => ({ label, value }));
+});
+
+const projectFilterOptions = computed(() =>
+  projectOptions.value
+    .filter((project) => !filters.spaceId || project.spaceId === filters.spaceId)
+    .map((project) => ({
+      label: `${project.spaceName} / ${project.projectName}`,
+      value: project.projectId,
+    })),
+);
+
+const projectTicketCounts = computed(() => {
+  const counts = new Map<string, number>();
+
+  for (const ticket of visibleTickets.value) {
+    counts.set(ticket.projectId, (counts.get(ticket.projectId) ?? 0) + 1);
+  }
+
+  return counts;
+});
+
+const quickProjectFilterOptions = computed(() =>
+  projectOptions.value.map((project) => ({
+    ...project,
+    active: filters.projectId === project.projectId,
+    ticketCount: projectTicketCounts.value.get(project.projectId) ?? 0,
+  })),
+);
+
+const selectedCreateProject = computed(() => findProjectOption(form.projectId));
+const selectedDetailsProject = computed(() => findProjectOption(detailsForm.projectId));
 
 const assignableUserOptions = computed(() =>
   assignableUsers.value.map((user) => ({
@@ -189,6 +250,13 @@ const columns = computed<QTableColumn<LocalTicket>[]>(() => {
       name: 'title',
       label: 'Заголовок',
       field: (row) => row.title.toLowerCase(),
+      align: 'left',
+      sortable: true,
+    },
+    {
+      name: 'project',
+      label: 'Project',
+      field: (row) => `${row.spaceName} ${row.projectName}`.toLowerCase(),
       align: 'left',
       sortable: true,
     },
@@ -284,6 +352,14 @@ const rows = computed(() =>
     }
 
     if (filters.status && ticket.status !== filters.status) {
+      return false;
+    }
+
+    if (filters.spaceId && ticket.spaceId !== filters.spaceId) {
+      return false;
+    }
+
+    if (filters.projectId && ticket.projectId !== filters.projectId) {
       return false;
     }
 
@@ -601,11 +677,24 @@ function statusLabel(status: TicketStatus) {
   return statusLabels[status];
 }
 
+function findProjectOption(projectId: string | null | undefined) {
+  if (!projectId) {
+    return null;
+  }
+
+  return projectOptions.value.find((project) => project.projectId === projectId) ?? null;
+}
+
+function ticketProjectLabel(ticket: Pick<LocalTicket, 'spaceName' | 'projectName'>) {
+  return `${ticket.spaceName} / ${ticket.projectName}`;
+}
+
 function syncLabel(syncStatus: LocalTicket['syncStatus']) {
   return syncLabels[syncStatus];
 }
 
 function resetForm() {
+  form.projectId = projectOptions.value[0]?.projectId ?? '';
   form.title = '';
   form.description = '';
   form.priority = 'medium';
@@ -614,6 +703,7 @@ function resetForm() {
 }
 
 function resetDetailsForm(ticket: LocalTicket) {
+  detailsForm.projectId = ticket.projectId;
   detailsForm.title = ticket.title;
   detailsForm.description = ticket.description;
   detailsForm.priority = ticket.priority;
@@ -654,14 +744,32 @@ function handleRowClick(_event: Event, row: LocalTicket) {
   openView(row);
 }
 
-async function loadAssignableUsers() {
+async function loadProjectOptions() {
+  try {
+    projectOptions.value = await spacesApi.listTicketProjects();
+
+    if (!form.projectId && projectOptions.value[0]) {
+      form.projectId = projectOptions.value[0].projectId;
+    }
+  } catch {
+    projectOptions.value = [];
+  }
+}
+
+async function loadAssignableUsers(projectId: string | null | undefined = null) {
+  const selectedProjectId = projectId?.trim();
+  if (!selectedProjectId) {
+    assignableUsers.value = [];
+    return;
+  }
+
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     assignableUsers.value = [];
     return;
   }
 
   try {
-    assignableUsers.value = await usersApi.listAssignable();
+    assignableUsers.value = await usersApi.listAssignable({ projectId: selectedProjectId });
   } catch {
     assignableUsers.value = [];
   }
@@ -669,7 +777,16 @@ async function loadAssignableUsers() {
 
 async function submit() {
   try {
+    const project = selectedCreateProject.value;
+    if (!project) {
+      throw new Error('Project is required');
+    }
+
     await ticketsStore.createTicket({
+      projectId: project.projectId,
+      projectName: project.projectName,
+      spaceId: project.spaceId,
+      spaceName: project.spaceName,
       title: form.title,
       description: form.description,
       priority: form.priority,
@@ -695,14 +812,16 @@ async function submitViewedTicket() {
   }
 
   try {
-    const patch: {
-      title: string;
-      description: string;
-      priority: TicketPriority;
-      status?: TicketStatus;
-      assignedTo?: string | null;
-      dueAt?: string | null;
-    } = {
+    const project = selectedDetailsProject.value;
+    if (!project) {
+      throw new Error('Project is required');
+    }
+
+    const patch: UpdateTicketInput = {
+      projectId: project.projectId,
+      projectName: project.projectName,
+      spaceId: project.spaceId,
+      spaceName: project.spaceName,
       title: detailsForm.title,
       description: detailsForm.description,
       priority: detailsForm.priority,
@@ -766,11 +885,23 @@ function resetFilters() {
   filters.title = '';
   filters.priority = null;
   filters.status = null;
+  filters.spaceId = null;
+  filters.projectId = null;
   filters.assignedTo = null;
   filters.syncStatus = null;
   filters.updatedFrom = '';
   filters.updatedTo = '';
   filters.createdAt = '';
+}
+
+function setProjectFilter(project: TicketProjectOption) {
+  filters.spaceId = project.spaceId;
+  filters.projectId = project.projectId;
+}
+
+function clearProjectFilter() {
+  filters.spaceId = null;
+  filters.projectId = null;
 }
 
 watch(syncError, (message, previous) => {
@@ -868,6 +999,48 @@ watch(
   { deep: true },
 );
 
+watch(
+  () => filters.spaceId,
+  (spaceId) => {
+    if (!spaceId) {
+      return;
+    }
+
+    if (
+      filters.projectId &&
+      !projectOptions.value.some(
+        (project) => project.projectId === filters.projectId && project.spaceId === spaceId,
+      )
+    ) {
+      filters.projectId = null;
+    }
+  },
+);
+
+watch(
+  () => form.projectId,
+  async (projectId, previousProjectId) => {
+    if (projectId === previousProjectId) {
+      return;
+    }
+
+    form.assignedTo = null;
+    await loadAssignableUsers(projectId);
+  },
+);
+
+watch(
+  () => detailsForm.projectId,
+  async (projectId, previousProjectId) => {
+    if (!detailsDialogOpen.value || projectId === previousProjectId) {
+      return;
+    }
+
+    detailsForm.assignedTo = null;
+    await loadAssignableUsers(projectId);
+  },
+);
+
 onMounted(async () => {
   authStore.setCurrentUser({
     id: props.currentUserId,
@@ -876,7 +1049,7 @@ onMounted(async () => {
   await authStore.bootstrapAuth();
   await syncStore.init();
   await ticketsStore.init();
-  await loadAssignableUsers();
+  await loadProjectOptions();
   await ticketsStore.loadTickets();
 });
 
@@ -966,6 +1139,34 @@ onBeforeUnmount(() => {
                       label="Статус"
                       :options="statusOptions"
                       aria-label="Фильтр по статусу"
+                    />
+                  </div>
+
+                  <div class="col-12 col-sm-6 col-md-3">
+                    <q-select
+                      v-model="filters.spaceId"
+                      outlined
+                      dense
+                      clearable
+                      emit-value
+                      map-options
+                      label="Space"
+                      :options="spaceFilterOptions"
+                      aria-label="Filter by space"
+                    />
+                  </div>
+
+                  <div class="col-12 col-sm-6 col-md-3">
+                    <q-select
+                      v-model="filters.projectId"
+                      outlined
+                      dense
+                      clearable
+                      emit-value
+                      map-options
+                      label="Project"
+                      :options="projectFilterOptions"
+                      aria-label="Filter by project"
                     />
                   </div>
 
@@ -1189,6 +1390,35 @@ onBeforeUnmount(() => {
       @retry="retrySync"
     />
 
+    <div
+      v-if="quickProjectFilterOptions.length > 0"
+      class="tickets-page__project-shortcuts q-mb-md"
+      aria-label="Р‘С‹СЃС‚СЂС‹Р№ С„РёР»СЊС‚СЂ РїРѕ РїСЂРѕРµРєС‚Сѓ"
+    >
+      <q-btn
+        dense
+        no-caps
+        :outline="Boolean(filters.projectId)"
+        :unelevated="!filters.projectId"
+        color="primary"
+        label="Р’СЃРµ РїСЂРѕРµРєС‚С‹"
+        aria-label="РџРѕРєР°Р·Р°С‚СЊ С‚РёРєРµС‚С‹ РІСЃРµС… РґРѕСЃС‚СѓРїРЅС‹С… РїСЂРѕРµРєС‚РѕРІ"
+        @click="clearProjectFilter"
+      />
+      <q-btn
+        v-for="project in quickProjectFilterOptions"
+        :key="project.projectId"
+        dense
+        no-caps
+        :outline="!project.active"
+        :unelevated="project.active"
+        color="primary"
+        :label="`${project.projectName} (${project.ticketCount})`"
+        :aria-label="`РџРѕРєР°Р·Р°С‚СЊ С‚РёРєРµС‚С‹ РїСЂРѕРµРєС‚Р° ${project.projectName}`"
+        @click="setProjectFilter(project)"
+      />
+    </div>
+
     <q-table
       v-model:pagination="pagination"
       flat
@@ -1206,6 +1436,15 @@ onBeforeUnmount(() => {
       aria-label="Таблица тикетов"
       @row-click="handleRowClick"
     >
+      <template #body-cell-project="slotProps">
+        <q-td :props="slotProps">
+          <div>{{ slotProps.row.projectName }}</div>
+          <div class="text-caption text-grey-7">
+            {{ slotProps.row.spaceName }}
+          </div>
+        </q-td>
+      </template>
+
       <template #body-cell-priority="slotProps">
         <q-td :props="slotProps">
           <q-badge color="grey-8">
@@ -1308,6 +1547,22 @@ onBeforeUnmount(() => {
 
         <q-card-section class="q-pt-none">
           <div class="tickets-page__details-grid q-mb-lg">
+            <div>
+              <div class="text-caption text-grey-7">Project</div>
+              <div v-if="!canEditViewedTicket">
+                {{ ticketProjectLabel(viewingTicket) }}
+              </div>
+              <q-select
+                v-else
+                v-model="detailsForm.projectId"
+                outlined
+                dense
+                emit-value
+                map-options
+                :options="projectSelectOptions"
+                aria-label="Ticket project"
+              />
+            </div>
             <div>
               <div class="text-caption text-grey-7">Статус</div>
               <div v-if="!canEditViewedTicket">
@@ -1482,6 +1737,15 @@ onBeforeUnmount(() => {
 
         <q-card-section class="q-pt-none">
           <q-form class="q-gutter-md" @submit.prevent="submit">
+            <q-select
+              v-model="form.projectId"
+              outlined
+              emit-value
+              map-options
+              label="Project"
+              :options="projectSelectOptions"
+              aria-label="Ticket project"
+            />
             <q-input
               v-model="form.title"
               v-focus-when="dialogOpen"
@@ -1580,6 +1844,17 @@ onBeforeUnmount(() => {
 
 .tickets-page__filters-card {
   width: min(92vw, 68rem);
+}
+
+.tickets-page__project-shortcuts {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.tickets-page__project-shortcuts :deep(.q-btn) {
+  flex: 0 0 auto;
 }
 
 .tickets-page__sync-strip {

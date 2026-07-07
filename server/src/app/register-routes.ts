@@ -7,6 +7,7 @@ import { kbRouter } from '../kb/routes';
 import { pushRouter } from '../push/routes';
 import { csrfRouter } from '../routes/csrf';
 import { healthRouter } from '../routes/health';
+import { spacesRouter } from '../spaces/routes';
 import { ticketsRouter } from '../tickets/routes';
 import { usersRouter } from '../users/routes';
 
@@ -19,6 +20,7 @@ export function registerRoutes(app: Express): void {
   app.use(analyticsRouter);
   app.use(kbRouter);
   app.use(pushRouter);
+  app.use(spacesRouter);
   app.use(ticketsRouter);
   app.use(usersRouter);
 }

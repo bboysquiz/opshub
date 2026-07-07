@@ -41,6 +41,10 @@ export function mergeCreatePayload(
   patch: UpdateTicketInput,
 ): CreateTicketInput {
   return {
+    projectId: patch.projectId ?? current.projectId,
+    projectName: patch.projectName ?? current.projectName,
+    spaceId: patch.spaceId ?? current.spaceId,
+    spaceName: patch.spaceName ?? current.spaceName,
     title: patch.title ?? current.title,
     description: patch.description ?? current.description,
     priority: patch.priority ?? current.priority,

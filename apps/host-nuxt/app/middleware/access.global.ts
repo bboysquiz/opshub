@@ -1,9 +1,10 @@
 import { useAuthStore } from '~/stores/auth';
+import type { AuthPermission } from '~/utils/access';
 
 type AccessRule = {
   test: (path: string) => boolean;
   requiresAuth: boolean;
-  permission?: 'viewAnalytics';
+  permission?: AuthPermission;
 };
 
 const accessRules: AccessRule[] = [
@@ -19,6 +20,11 @@ const accessRules: AccessRule[] = [
   {
     test: (path) => path.startsWith('/notifications'),
     requiresAuth: true,
+  },
+  {
+    test: (path) => path.startsWith('/spaces'),
+    requiresAuth: true,
+    permission: 'manageWorkspaces',
   },
 ];
 

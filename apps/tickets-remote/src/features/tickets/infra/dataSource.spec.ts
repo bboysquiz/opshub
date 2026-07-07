@@ -30,6 +30,10 @@ vi.mock('./dexie', () => ({
 function createTicket(overrides: Partial<TicketDto> = {}): TicketDto {
   return {
     id: 'ticket-1',
+    projectId: 'project-1',
+    projectName: 'Support',
+    spaceId: 'space-1',
+    spaceName: 'Ops',
     title: 'Серверный тикет',
     description: 'Описание',
     status: 'open',
@@ -57,6 +61,10 @@ describe('tickets dataSource', () => {
   it('keeps local pending changes when refreshing from the network', async () => {
     vi.mocked(ticketsDb.tickets.toArray).mockResolvedValue([
       toLocalTicket(createTicket(), {
+        projectId: 'project-local',
+        projectName: 'Local support',
+        spaceId: 'space-local',
+        spaceName: 'Local ops',
         title: 'Локальный черновик',
         syncStatus: 'queued',
         isLocalOnly: true,
@@ -72,8 +80,22 @@ describe('tickets dataSource', () => {
     ]);
 
     const items = await refreshFromNetwork();
+    const localItem = items.find((item) => item.id === 'ticket-1');
+    const remoteItem = items.find((item) => item.id === 'ticket-2');
 
     expect(items).toHaveLength(2);
+    expect(localItem).toMatchObject({
+      projectId: 'project-local',
+      projectName: 'Local support',
+      spaceId: 'space-local',
+      spaceName: 'Local ops',
+    });
+    expect(remoteItem).toMatchObject({
+      projectId: 'project-1',
+      projectName: 'Support',
+      spaceId: 'space-1',
+      spaceName: 'Ops',
+    });
     expect(items.find((item) => item.id === 'ticket-1')?.title).toBe('Локальный черновик');
     expect(vi.mocked(ticketsDb.tickets.bulkPut)).toHaveBeenCalledWith(items);
     expect(readFromMemory()?.map((item) => item.id)).toEqual(['ticket-2', 'ticket-1']);

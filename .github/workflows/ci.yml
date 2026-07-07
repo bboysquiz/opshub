@@ -10,10 +10,35 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: opshub
+          POSTGRES_PASSWORD: opshub
+          POSTGRES_DB: opshub_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U opshub -d opshub_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://opshub:opshub@localhost:5432/opshub_ci
+      JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret-ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret-ci-refresh-secret
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.2
+          run_install: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -22,20 +47,23 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Enable corepack
-        run: corepack enable
-
       - name: Install
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm lint --max-warnings=0
+        run: pnpm lint
 
-      - name: Format check
-        run: pnpm prettier -c .
+      - name: Typecheck
+        run: pnpm typecheck
 
-      - name: Typecheck (best-effort)
-        run: pnpm -r --if-present typecheck
+      - name: Frontend tests
+        run: pnpm run test:frontend
 
-      - name: Build (best-effort)
-        run: pnpm -r --if-present build
+      - name: Server tests
+        run: pnpm run test:server
+
+      - name: Server migration check
+        run: pnpm --filter server migrate
+
+      - name: Build
+        run: pnpm build

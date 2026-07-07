@@ -20,6 +20,14 @@ vi.mock('~/stores/auth', () => ({
 
 vi.mock('#imports', () => ({
   navigateTo,
+  useRuntimeConfig: () => ({
+    public: {
+      apiBaseUrl: 'http://localhost:3001',
+      ticketsRemoteEntryUrl: 'http://localhost:3010/remoteEntry.js',
+      kbRemoteEntryUrl: 'http://localhost:3020/remoteEntry.js',
+      analyticsRemoteEntryUrl: 'http://localhost:3030/remoteEntry.js',
+    },
+  }),
 }));
 
 vi.mock('@opshub/shared-ui', async () => {

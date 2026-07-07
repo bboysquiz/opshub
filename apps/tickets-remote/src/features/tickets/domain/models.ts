@@ -4,6 +4,10 @@ export type LocalSyncStatus = 'synced' | 'queued' | 'syncing' | 'error' | 'confl
 
 export type TicketDto = {
   id: string;
+  projectId: string;
+  projectName: string;
+  spaceId: string;
+  spaceName: string;
   title: string;
   description: string;
   status: TicketStatus;
@@ -18,6 +22,10 @@ export type TicketDto = {
 };
 
 export type CreateTicketInput = {
+  projectId?: string;
+  projectName?: string;
+  spaceId?: string;
+  spaceName?: string;
   title: string;
   description: string;
   priority: TicketPriority;
@@ -26,6 +34,10 @@ export type CreateTicketInput = {
 };
 
 export type UpdateTicketInput = {
+  projectId?: string;
+  projectName?: string;
+  spaceId?: string;
+  spaceName?: string;
   title?: string;
   description?: string;
   status?: TicketStatus;
@@ -57,12 +69,20 @@ export function sortTickets(items: LocalTicket[]) {
   );
 }
 
+export function normalizeTicketRelationField(value: string | null | undefined) {
+  return value ?? '';
+}
+
 export function toLocalTicket(
   ticket: TicketDto,
   overrides: Partial<LocalTicket> = {},
 ): LocalTicket {
   return {
     ...ticket,
+    projectId: normalizeTicketRelationField(ticket.projectId),
+    projectName: normalizeTicketRelationField(ticket.projectName),
+    spaceId: normalizeTicketRelationField(ticket.spaceId),
+    spaceName: normalizeTicketRelationField(ticket.spaceName),
     dueAt: ticket.dueAt ? String(ticket.dueAt) : null,
     updatedAt: String(ticket.updatedAt),
     createdAt: String(ticket.createdAt),

@@ -110,9 +110,14 @@ export const useTicketsStore = defineStore('tickets', () => {
 
     const localId = crypto.randomUUID();
     const timestamp = nowIso();
+    const projectId = input.projectId?.trim() || undefined;
 
     const localTicket: LocalTicket = {
       id: localId,
+      projectId: projectId ?? '',
+      projectName: input.projectName ?? '',
+      spaceId: input.spaceId ?? '',
+      spaceName: input.spaceName ?? '',
       title,
       description: input.description,
       status: 'open',
@@ -137,6 +142,10 @@ export const useTicketsStore = defineStore('tickets', () => {
       ticketId: localId,
       type: 'create',
       payload: {
+        projectId,
+        projectName: input.projectName,
+        spaceId: input.spaceId,
+        spaceName: input.spaceName,
         title,
         description: input.description,
         priority: input.priority,

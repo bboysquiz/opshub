@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:netlify": "tsc -p tsconfig.netlify.json --noEmit",
+    "build": "pnpm run typecheck",
     "netlify:build": "pnpm run typecheck:netlify && pnpm run migrate",
     "dev": "tsx watch src/index.ts",
     "migrate": "tsx src/migrate.ts"
