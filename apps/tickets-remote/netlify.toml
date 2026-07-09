@@ -1,6 +1,6 @@
 [build]
   command = "pnpm --filter tickets-remote netlify:build"
-  publish = "dist"
+  publish = "apps/tickets-remote/dist"
 
 [build.environment]
   NODE_VERSION = "22"

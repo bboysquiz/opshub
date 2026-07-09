@@ -180,15 +180,15 @@ Host загружает remotes на клиенте:
 
 Настройки sites:
 
-| Site             | Project to deploy       | Build command                                  | Publish directory |
-| ---------------- | ----------------------- | ---------------------------------------------- | ----------------- |
-| API              | `server`                | `pnpm --filter server netlify:build`           | `public`          |
-| Host             | `apps/host-nuxt`        | `pnpm --filter host-nuxt netlify:build`        | `.output/public`  |
-| Tickets remote   | `apps/tickets-remote`   | `pnpm --filter tickets-remote netlify:build`   | `dist`            |
-| KB remote        | `apps/kb-remote`        | `pnpm --filter kb-remote netlify:build`        | `dist`            |
-| Analytics remote | `apps/analytics-remote` | `pnpm --filter analytics-remote netlify:build` | `dist`            |
+| Site             | Project to deploy       | Build command                                  | Publish directory               |
+| ---------------- | ----------------------- | ---------------------------------------------- | ------------------------------- |
+| API              | `server`                | `pnpm --filter server netlify:build`           | `server/public`                 |
+| Host             | `apps/host-nuxt`        | `pnpm --filter host-nuxt netlify:build`        | `apps/host-nuxt/.output/public` |
+| Tickets remote   | `apps/tickets-remote`   | `pnpm --filter tickets-remote netlify:build`   | `apps/tickets-remote/dist`      |
+| KB remote        | `apps/kb-remote`        | `pnpm --filter kb-remote netlify:build`        | `apps/kb-remote/dist`           |
+| Analytics remote | `apps/analytics-remote` | `pnpm --filter analytics-remote netlify:build` | `apps/analytics-remote/dist`    |
 
-Host publish directory должен оставаться `.output/public` внутри Netlify base directory `apps/host-nuxt`: `host-nuxt` на Netlify собирается через `nuxt generate`, а `netlify:build` дополнительно пишет `_redirects` для `/api/*` и SPA fallback. Если указать `dist` или продублировать base path как `apps/host-nuxt/.output/public`, Netlify может открыть deploy preview без актуального host build и без рабочего proxy к API.
+Host site в Netlify должен оставлять `Base directory` равным `/` и использовать `Package directory` = `apps/host-nuxt`; поэтому `Publish directory` указывается от корня репозитория как `apps/host-nuxt/.output/public`. `host-nuxt` на Netlify собирается через `nuxt generate`, а `netlify:build` дополнительно пишет `_redirects` для `/api/*` и SPA fallback. Если указать `apps/host-nuxt/dist`, Netlify будет искать папку, которую Nuxt здесь не создает.
 
 Backend env для Netlify site `server`:
 

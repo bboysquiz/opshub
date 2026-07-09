@@ -4,12 +4,12 @@ Nuxt host-shell для OpsHub. Host собирается как статичес
 
 ## Netlify
 
-Создавайте отдельный Netlify site с `Project to deploy` = `apps/host-nuxt`.
+Создавайте отдельный Netlify site с `Package directory` = `apps/host-nuxt` и `Base directory` = `/`.
 
 ```toml
 [build]
   command = "pnpm --filter host-nuxt netlify:build"
-  publish = ".output/public"
+  publish = "apps/host-nuxt/.output/public"
 ```
 
 `netlify:build` делает две вещи:

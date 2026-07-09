@@ -1,7 +1,7 @@
 [build]
   command = "pnpm --filter server netlify:build"
-  functions = "netlify/functions"
-  publish = "public"
+  functions = "server/netlify/functions"
+  publish = "server/public"
 
 [build.environment]
   NODE_VERSION = "22"

@@ -1,6 +1,6 @@
 [build]
   command = "pnpm --filter host-nuxt netlify:build"
-  publish = ".output/public"
+  publish = "apps/host-nuxt/.output/public"
 
 [build.environment]
   NODE_VERSION = "20.19.0"
