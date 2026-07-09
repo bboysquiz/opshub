@@ -9,7 +9,7 @@ Nuxt host-shell для OpsHub. Host собирается как статичес
 ```toml
 [build]
   command = "pnpm --filter host-nuxt netlify:build"
-  publish = "apps/host-nuxt/.output/public"
+  publish = ".output/public"
 ```
 
 `netlify:build` делает две вещи:

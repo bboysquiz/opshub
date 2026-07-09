@@ -1,6 +1,6 @@
 [build]
   command = "pnpm --filter kb-remote netlify:build"
-  publish = "apps/kb-remote/dist"
+  publish = "dist"
 
 [build.environment]
   NODE_VERSION = "22"

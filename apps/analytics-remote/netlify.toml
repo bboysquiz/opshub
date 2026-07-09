@@ -1,6 +1,6 @@
 [build]
   command = "pnpm --filter analytics-remote netlify:build"
-  publish = "apps/analytics-remote/dist"
+  publish = "dist"
 
 [build.environment]
   NODE_VERSION = "22"
