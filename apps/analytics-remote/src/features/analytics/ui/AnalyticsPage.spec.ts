@@ -123,7 +123,16 @@ import AnalyticsPage from './AnalyticsPage.vue';
 
 describe('AnalyticsPage', () => {
   it('hydrates filters, loads data and renders the roles section', async () => {
-    const wrapper = shallowMount(AnalyticsPage);
+    const wrapper = shallowMount(AnalyticsPage, {
+      global: {
+        stubs: {
+          OpPageHeader: false,
+          OpPanel: false,
+          'op-page-header': false,
+          'op-panel': false,
+        },
+      },
+    });
     await flushPromises();
     const setupState = (wrapper.vm as { $?: { setupState?: Record<string, unknown> } }).$
       ?.setupState;

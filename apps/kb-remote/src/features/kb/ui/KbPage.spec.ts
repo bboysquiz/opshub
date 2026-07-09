@@ -80,6 +80,14 @@ describe('KbPage', () => {
       props: {
         userRole: 'admin',
       },
+      global: {
+        stubs: {
+          OpPageHeader: false,
+          OpPanel: false,
+          'op-page-header': false,
+          'op-panel': false,
+        },
+      },
     });
     await flushPromises();
 
