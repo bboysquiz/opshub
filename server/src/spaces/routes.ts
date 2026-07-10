@@ -6,6 +6,8 @@ import {
   addSpaceMemberHandler,
   createProjectHandler,
   createSpaceHandler,
+  deleteProjectHandler,
+  deleteSpaceHandler,
   listProjectMembersHandler,
   listSpaceMembersHandler,
   listSpaceProjectsHandler,
@@ -32,6 +34,13 @@ spacesRouter.patch(
   requireRoles('admin', 'agent'),
   requireCsrf,
   patchSpaceHandler,
+);
+spacesRouter.delete(
+  '/spaces/:spaceId',
+  requireAccess,
+  requireRoles('admin', 'agent'),
+  requireCsrf,
+  deleteSpaceHandler,
 );
 spacesRouter.get('/spaces/:spaceId/members', requireAccess, listSpaceMembersHandler);
 spacesRouter.post(
@@ -62,6 +71,13 @@ spacesRouter.patch(
   requireRoles('admin', 'agent'),
   requireCsrf,
   patchProjectHandler,
+);
+spacesRouter.delete(
+  '/spaces/:spaceId/projects/:projectId',
+  requireAccess,
+  requireRoles('admin', 'agent'),
+  requireCsrf,
+  deleteProjectHandler,
 );
 spacesRouter.get(
   '/spaces/:spaceId/projects/:projectId/members',

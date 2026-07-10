@@ -32,6 +32,14 @@ function normalizeSpacesErrorMessage(error: unknown, fallback: string): string {
     return spaceAccessErrorStateCopy.projectMemberOutsideSpace.message;
   }
 
+  if (error.message === 'Space contains tickets and cannot be deleted') {
+    return spaceAccessErrorStateCopy.deleteSpaceBlocked.message;
+  }
+
+  if (error.message === 'Project contains tickets and cannot be deleted') {
+    return spaceAccessErrorStateCopy.deleteProjectBlocked.message;
+  }
+
   if (error.message === 'Failed to fetch') {
     return spaceAccessErrorStateCopy.network.message;
   }
@@ -258,6 +266,15 @@ export const useSpacesStore = defineStore('spaces', () => {
     return space;
   }
 
+  async function deleteSpace(spaceId: string): Promise<void> {
+    await run('write', 'Failed to delete space', () => api.deleteSpace(spaceId));
+    setSpaces(spaces.value.filter((space) => space.id !== spaceId));
+
+    const nextUserOptionsBySpace = { ...userOptionsBySpace.value };
+    delete nextUserOptionsBySpace[spaceId];
+    userOptionsBySpace.value = nextUserOptionsBySpace;
+  }
+
   async function loadSpaceMembers(spaceId: string): Promise<MemberDto[]> {
     const members = await run('read', 'Failed to load space members', () =>
       api.listSpaceMembers(spaceId),
@@ -322,6 +339,19 @@ export const useSpacesStore = defineStore('spaces', () => {
     );
     upsertProject(spaceId, project);
     return project;
+  }
+
+  async function deleteProject(spaceId: string, projectId: string): Promise<void> {
+    await run('write', 'Failed to delete project', () => api.deleteProject(spaceId, projectId));
+
+    const projects = (projectsBySpace.value[spaceId] ?? []).filter(
+      (project) => project.id !== projectId,
+    );
+    setProjects(spaceId, projects);
+
+    const nextProjectMembers = { ...projectMembersByProject.value };
+    delete nextProjectMembers[projectId];
+    projectMembersByProject.value = nextProjectMembers;
   }
 
   async function loadProjectMembers(spaceId: string, projectId: string): Promise<MemberDto[]> {
@@ -399,12 +429,14 @@ export const useSpacesStore = defineStore('spaces', () => {
     loadSpaces,
     createSpace,
     updateSpace,
+    deleteSpace,
     loadSpaceMembers,
     addSpaceMember,
     removeSpaceMember,
     loadSpaceProjects,
     createProject,
     updateProject,
+    deleteProject,
     loadProjectMembers,
     addProjectMember,
     removeProjectMember,

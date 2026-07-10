@@ -16,8 +16,11 @@ describe('spaces access contract', () => {
 
   it('resolves role operations for workspace management', () => {
     expect(canPerformSpaceAccessOperation('admin', 'createSpace')).toBe(true);
+    expect(canPerformSpaceAccessOperation('admin', 'deleteSpace')).toBe(true);
     expect(canPerformSpaceAccessOperation('agent', 'manageProjectMembers')).toBe(true);
+    expect(canPerformSpaceAccessOperation('agent', 'deleteProject')).toBe(true);
     expect(canPerformSpaceAccessOperation('employee', 'createProject')).toBe(false);
+    expect(canPerformSpaceAccessOperation('employee', 'deleteProject')).toBe(false);
     expect(canPerformSpaceAccessOperation(null, 'viewMemberSpaces')).toBe(false);
   });
 
@@ -27,5 +30,6 @@ describe('spaces access contract', () => {
     expect(spaceAccessErrorStateCopy.projectMemberOutsideSpace.title).toBe(
       'Пользователь не входит в пространство',
     );
+    expect(spaceAccessErrorStateCopy.deleteProjectBlocked.message).toContain('задачи');
   });
 });

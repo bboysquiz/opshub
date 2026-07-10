@@ -122,6 +122,10 @@ export function createSpacesApi(request: ApiRequest) {
       return request<SpaceDto>(spacePath(spaceId), jsonInit('PATCH', payload), { csrf: true });
     },
 
+    deleteSpace(spaceId: string): Promise<void> {
+      return request<void>(spacePath(spaceId), { method: 'DELETE' }, { csrf: true });
+    },
+
     async listSpaceMembers(spaceId: string): Promise<MemberDto[]> {
       const data = await request<ItemsResponse<MemberDto>>(spaceMemberPath(spaceId));
       return data.items;
@@ -160,6 +164,10 @@ export function createSpacesApi(request: ApiRequest) {
       return request<ProjectDto>(projectPath(spaceId, projectId), jsonInit('PATCH', payload), {
         csrf: true,
       });
+    },
+
+    deleteProject(spaceId: string, projectId: string): Promise<void> {
+      return request<void>(projectPath(spaceId, projectId), { method: 'DELETE' }, { csrf: true });
     },
 
     async listProjectMembers(spaceId: string, projectId: string): Promise<MemberDto[]> {

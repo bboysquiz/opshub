@@ -1,9 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccessPayload, SafeUser } from '../auth/types';
 import { findUserById } from '../auth/repository';
-import { addProjectMember, findProjectById, findSpaceMember } from './repository';
-import { addProjectMemberRecord } from './service';
-import type { ProjectMemberRow, ProjectRow, SpaceMemberRow } from './types';
+import {
+  addProjectMember,
+  deleteProjectById,
+  deleteSpaceById,
+  findProjectById,
+  findSpaceById,
+  findSpaceMember,
+} from './repository';
+import { addProjectMemberRecord, deleteProjectRecord, deleteSpaceRecord } from './service';
+import type { ProjectMemberRow, ProjectRow, SpaceMemberRow, SpaceRow } from './types';
 
 vi.mock('../db', () => ({
   pool: {
@@ -20,6 +27,8 @@ vi.mock('./repository', () => ({
   addSpaceMember: vi.fn(),
   createProject: vi.fn(),
   createSpace: vi.fn(),
+  deleteProjectById: vi.fn(),
+  deleteSpaceById: vi.fn(),
   findProjectById: vi.fn(),
   findSpaceById: vi.fn(),
   findSpaceMember: vi.fn(),
@@ -67,6 +76,16 @@ const projectRow: ProjectRow = {
   created_at: createdAt,
 };
 
+const spaceRow: SpaceRow = {
+  id: spaceId,
+  name: 'Ops space',
+  description: 'Space for Ops team',
+  created_by: adminActor.sub,
+  created_by_email: adminActor.email,
+  updated_at: createdAt,
+  created_at: createdAt,
+};
+
 const memberUser: SafeUser = {
   id: memberId,
   email: 'employee@example.test',
@@ -94,9 +113,12 @@ const projectMemberRow: ProjectMemberRow = {
 };
 
 const mockedFindProjectById = vi.mocked(findProjectById);
+const mockedFindSpaceById = vi.mocked(findSpaceById);
 const mockedFindUserById = vi.mocked(findUserById);
 const mockedFindSpaceMember = vi.mocked(findSpaceMember);
 const mockedAddProjectMember = vi.mocked(addProjectMember);
+const mockedDeleteProjectById = vi.mocked(deleteProjectById);
+const mockedDeleteSpaceById = vi.mocked(deleteSpaceById);
 
 describe('spaces service contracts', () => {
   beforeEach(() => {
@@ -156,5 +178,63 @@ describe('spaces service contracts', () => {
       message: 'Forbidden',
     });
     expect(mockedFindUserById).not.toHaveBeenCalled();
+  });
+
+  it('deletes an empty project for an administrator', async () => {
+    mockedFindProjectById.mockResolvedValue(projectRow);
+    mockedDeleteProjectById.mockResolvedValue(true);
+
+    await expect(deleteProjectRecord(spaceId, projectId, adminActor)).resolves.toBeUndefined();
+
+    expect(mockedDeleteProjectById).toHaveBeenCalledWith(spaceId, projectId);
+  });
+
+  it('returns 409 instead of deleting a project that contains tickets', async () => {
+    mockedFindProjectById.mockResolvedValue(projectRow);
+    mockedDeleteProjectById.mockRejectedValue({ code: '23503' });
+
+    await expect(deleteProjectRecord(spaceId, projectId, adminActor)).rejects.toMatchObject({
+      status: 409,
+      message: 'Project contains tickets and cannot be deleted',
+    });
+  });
+
+  it('returns 404 when the project deletion target does not exist', async () => {
+    mockedFindProjectById.mockResolvedValue(null);
+
+    await expect(deleteProjectRecord(spaceId, projectId, adminActor)).rejects.toMatchObject({
+      status: 404,
+      message: 'Project not found',
+    });
+    expect(mockedDeleteProjectById).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when an employee tries to delete a project', async () => {
+    mockedFindProjectById.mockResolvedValue(projectRow);
+
+    await expect(deleteProjectRecord(spaceId, projectId, employeeActor)).rejects.toMatchObject({
+      status: 403,
+      message: 'Forbidden',
+    });
+    expect(mockedDeleteProjectById).not.toHaveBeenCalled();
+  });
+
+  it('deletes a space without ticket dependencies', async () => {
+    mockedFindSpaceById.mockResolvedValue(spaceRow);
+    mockedDeleteSpaceById.mockResolvedValue(true);
+
+    await expect(deleteSpaceRecord(spaceId, adminActor)).resolves.toBeUndefined();
+
+    expect(mockedDeleteSpaceById).toHaveBeenCalledWith(spaceId);
+  });
+
+  it('returns 409 instead of deleting a space that contains tickets', async () => {
+    mockedFindSpaceById.mockResolvedValue(spaceRow);
+    mockedDeleteSpaceById.mockRejectedValue({ code: '23503' });
+
+    await expect(deleteSpaceRecord(spaceId, adminActor)).rejects.toMatchObject({
+      status: 409,
+      message: 'Space contains tickets and cannot be deleted',
+    });
   });
 });

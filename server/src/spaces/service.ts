@@ -7,6 +7,8 @@ import {
   addSpaceMember,
   createProject,
   createSpace,
+  deleteProjectById,
+  deleteSpaceById,
   findProjectById,
   findSpaceById,
   findSpaceMember,
@@ -117,6 +119,10 @@ function groupProjects(
 
 function isUniqueViolation(err: unknown): boolean {
   return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23505';
+}
+
+function isForeignKeyViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: string }).code === '23503';
 }
 
 function assertCanCreateOrManage(actor: AccessPayload): void {
@@ -262,6 +268,25 @@ export async function updateSpaceRecord(
   return space;
 }
 
+export async function deleteSpaceRecord(spaceId: string, actor: AccessPayload): Promise<void> {
+  await getSpaceOrThrow(spaceId);
+  await assertCanManageSpace(actor, spaceId);
+
+  try {
+    const deleted = await deleteSpaceById(spaceId);
+    if (!deleted) {
+      throw new SpacesError(404, 'Space not found');
+    }
+  } catch (err) {
+    // Tickets deliberately have no cascading delete, so deleting their parent space must fail safely.
+    if (isForeignKeyViolation(err)) {
+      throw new SpacesError(409, 'Space contains tickets and cannot be deleted');
+    }
+
+    throw err;
+  }
+}
+
 export async function listSpaceMembersRecord(
   spaceId: string,
   actor: AccessPayload,
@@ -377,6 +402,29 @@ export async function updateProjectRecord(
   } catch (err) {
     if (isUniqueViolation(err)) {
       throw new SpacesError(409, 'Project with this name already exists in space');
+    }
+
+    throw err;
+  }
+}
+
+export async function deleteProjectRecord(
+  spaceId: string,
+  projectId: string,
+  actor: AccessPayload,
+): Promise<void> {
+  await getProjectOrThrow(spaceId, projectId);
+  await assertCanManageSpace(actor, spaceId);
+
+  try {
+    const deleted = await deleteProjectById(spaceId, projectId);
+    if (!deleted) {
+      throw new SpacesError(404, 'Project not found');
+    }
+  } catch (err) {
+    // A project with tickets stays intact; users must move or remove its tickets explicitly first.
+    if (isForeignKeyViolation(err)) {
+      throw new SpacesError(409, 'Project contains tickets and cannot be deleted');
     }
 
     throw err;

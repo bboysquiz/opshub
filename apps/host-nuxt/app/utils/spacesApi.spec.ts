@@ -71,7 +71,11 @@ describe('spaces api client', () => {
   it('marks spaces and project mutations as csrf-protected requests', async () => {
     const { api, calls } = createRequestStub([
       space,
+      space,
+      undefined,
       project,
+      project,
+      undefined,
       member,
       member,
       undefined,
@@ -79,7 +83,11 @@ describe('spaces api client', () => {
     ]);
 
     await api.createSpace({ name: 'Ops' });
+    await api.updateSpace(space.id, { name: 'Updated Ops' });
+    await api.deleteSpace(space.id);
     await api.createProject(space.id, { name: 'Support', description: 'L1' });
+    await api.updateProject(space.id, project.id, { name: 'Updated Support' });
+    await api.deleteProject(space.id, project.id);
     await api.addSpaceMember(space.id, member.id);
     await api.addProjectMember(space.id, project.id, member.id);
     await api.removeSpaceMember(space.id, member.id);
@@ -92,8 +100,28 @@ describe('spaces api client', () => {
         options: { csrf: true },
       },
       {
+        path: `/spaces/${space.id}`,
+        init: { method: 'PATCH', body: JSON.stringify({ name: 'Updated Ops' }) },
+        options: { csrf: true },
+      },
+      {
+        path: `/spaces/${space.id}`,
+        init: { method: 'DELETE' },
+        options: { csrf: true },
+      },
+      {
         path: `/spaces/${space.id}/projects`,
         init: { method: 'POST', body: JSON.stringify({ name: 'Support', description: 'L1' }) },
+        options: { csrf: true },
+      },
+      {
+        path: `/spaces/${space.id}/projects/${project.id}`,
+        init: { method: 'PATCH', body: JSON.stringify({ name: 'Updated Support' }) },
+        options: { csrf: true },
+      },
+      {
+        path: `/spaces/${space.id}/projects/${project.id}`,
+        init: { method: 'DELETE' },
         options: { csrf: true },
       },
       {

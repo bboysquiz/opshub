@@ -123,6 +123,16 @@ export async function updateSpaceById(
   return findSpaceById(result.rows[0].id, db);
 }
 
+export async function deleteSpaceById(spaceId: string, db: Queryable = pool): Promise<boolean> {
+  const result = await db.query(
+    `delete from spaces
+     where id = $1`,
+    [spaceId],
+  );
+
+  return Boolean(result.rowCount);
+}
+
 export async function listSpaceMembers(
   spaceId: string,
   db: Queryable = pool,
@@ -364,6 +374,21 @@ export async function updateProjectById(
   }
 
   return findProjectById(spaceId, result.rows[0].id, db);
+}
+
+export async function deleteProjectById(
+  spaceId: string,
+  projectId: string,
+  db: Queryable = pool,
+): Promise<boolean> {
+  const result = await db.query(
+    `delete from projects
+     where space_id = $1
+       and id = $2`,
+    [spaceId, projectId],
+  );
+
+  return Boolean(result.rowCount);
 }
 
 export async function listProjectMembers(

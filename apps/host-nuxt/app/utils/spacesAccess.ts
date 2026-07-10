@@ -5,9 +5,11 @@ export type SpaceAccessOperation =
   | 'viewMemberSpaces'
   | 'createSpace'
   | 'editSpace'
+  | 'deleteSpace'
   | 'manageSpaceMembers'
   | 'createProject'
   | 'editProject'
+  | 'deleteProject'
   | 'manageProjectMembers'
   | 'viewProjectTickets';
 
@@ -25,9 +27,11 @@ export const spaceAccessRolePolicies: Record<UserRole, SpaceAccessRolePolicy> = 
       'viewAllSpaces',
       'createSpace',
       'editSpace',
+      'deleteSpace',
       'manageSpaceMembers',
       'createProject',
       'editProject',
+      'deleteProject',
       'manageProjectMembers',
       'viewProjectTickets',
     ],
@@ -39,9 +43,11 @@ export const spaceAccessRolePolicies: Record<UserRole, SpaceAccessRolePolicy> = 
       'viewMemberSpaces',
       'createSpace',
       'editSpace',
+      'deleteSpace',
       'manageSpaceMembers',
       'createProject',
       'editProject',
+      'deleteProject',
       'manageProjectMembers',
       'viewProjectTickets',
     ],
@@ -120,7 +126,9 @@ export type SpaceAccessErrorState =
   | 'saveProjectFailed'
   | 'forbidden'
   | 'duplicateProjectName'
-  | 'projectMemberOutsideSpace';
+  | 'projectMemberOutsideSpace'
+  | 'deleteSpaceBlocked'
+  | 'deleteProjectBlocked';
 
 // `Record` делает обработку ошибок полной: UI не сможет забыть отдельный backend/product case.
 export const spaceAccessErrorStateCopy: Record<SpaceAccessErrorState, SpaceAccessStateCopy> = {
@@ -151,6 +159,16 @@ export const spaceAccessErrorStateCopy: Record<SpaceAccessErrorState, SpaceAcces
   projectMemberOutsideSpace: {
     title: 'Пользователь не входит в пространство',
     message: 'Перед добавлением в проект пользователь должен быть участником пространства.',
+  },
+  deleteSpaceBlocked: {
+    title: 'Пространство содержит задачи',
+    message:
+      'Пространство нельзя удалить, пока в его проектах есть задачи. Сначала перенесите или удалите задачи.',
+  },
+  deleteProjectBlocked: {
+    title: 'Проект содержит задачи',
+    message:
+      'Проект нельзя удалить, пока в нем есть задачи. Сначала перенесите или удалите задачи.',
   },
 };
 

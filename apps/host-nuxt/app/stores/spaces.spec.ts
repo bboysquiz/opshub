@@ -7,6 +7,8 @@ const api = vi.hoisted(() => ({
   addSpaceMember: vi.fn(),
   createProject: vi.fn(),
   createSpace: vi.fn(),
+  deleteProject: vi.fn(),
+  deleteSpace: vi.fn(),
   listProjectMembers: vi.fn(),
   listSpaceMembers: vi.fn(),
   listSpaceProjects: vi.fn(),
@@ -168,5 +170,59 @@ describe('spaces store', () => {
     expect(store.userOptions).toEqual([user]);
     expect(store.userOptionsBySpace['space-1']).toEqual([user]);
     expect(store.optionsLoading).toBe(false);
+  });
+
+  it('updates and deletes projects and spaces without leaving stale graph entries', async () => {
+    const project = makeProject();
+    const space = makeSpace({ projects: [project] });
+    const updatedSpace = { ...space, name: 'Updated Ops' };
+    const updatedProject = { ...project, name: 'Updated Support' };
+
+    api.listSpaces.mockResolvedValue([space]);
+    api.updateSpace.mockResolvedValue(updatedSpace);
+    api.updateProject.mockResolvedValue(updatedProject);
+    api.deleteProject.mockResolvedValue(undefined);
+    api.deleteSpace.mockResolvedValue(undefined);
+
+    const store = useSpacesStore();
+    await store.loadSpaces();
+    store.userOptionsBySpace = { 'space-1': [] };
+
+    await expect(store.updateSpace('space-1', { name: 'Updated Ops' })).resolves.toEqual(
+      updatedSpace,
+    );
+    await expect(
+      store.updateProject('space-1', 'project-1', { name: 'Updated Support' }),
+    ).resolves.toEqual(updatedProject);
+    expect(store.spaces[0]?.name).toBe('Updated Ops');
+    expect(store.projectsBySpace['space-1']?.[0]?.name).toBe('Updated Support');
+
+    await store.deleteProject('space-1', 'project-1');
+    expect(store.projectsBySpace['space-1']).toEqual([]);
+    expect(store.projectMembersByProject['project-1']).toBeUndefined();
+
+    await store.deleteSpace('space-1');
+    expect(store.spaces).toEqual([]);
+    expect(store.projectsBySpace['space-1']).toBeUndefined();
+    expect(store.userOptionsBySpace['space-1']).toBeUndefined();
+  });
+
+  it('keeps project data when deletion is blocked by tickets', async () => {
+    const project = makeProject();
+    const space = makeSpace({ projects: [project] });
+
+    api.listSpaces.mockResolvedValue([space]);
+    api.deleteProject.mockRejectedValue(
+      new Error('Project contains tickets and cannot be deleted'),
+    );
+
+    const store = useSpacesStore();
+    await store.loadSpaces();
+
+    await expect(store.deleteProject('space-1', 'project-1')).rejects.toThrow(
+      spaceAccessErrorStateCopy.deleteProjectBlocked.message,
+    );
+    expect(store.projectsBySpace['space-1']).toEqual([project]);
+    expect(store.error).toBe(spaceAccessErrorStateCopy.deleteProjectBlocked.message);
   });
 });

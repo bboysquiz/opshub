@@ -31,6 +31,12 @@ const spaceNameError = ref<string | null>(null);
 const projectNameError = ref<string | null>(null);
 const spaceMemberError = ref<string | null>(null);
 const projectMemberError = ref<string | null>(null);
+const editSpaceNameError = ref<string | null>(null);
+const editProjectNameError = ref<string | null>(null);
+const editSpaceDialogOpen = ref(false);
+const editProjectDialogOpen = ref(false);
+const deleteSpaceDialogOpen = ref(false);
+const deleteProjectDialogOpen = ref(false);
 
 const spaceForm = reactive({
   name: '',
@@ -38,6 +44,16 @@ const spaceForm = reactive({
 });
 
 const projectForm = reactive({
+  name: '',
+  description: '',
+});
+
+const editSpaceForm = reactive({
+  name: '',
+  description: '',
+});
+
+const editProjectForm = reactive({
   name: '',
   description: '',
 });
@@ -72,6 +88,8 @@ const noEligibleProjectMembersCopy = spaceAccessEmptyStateCopy.noEligibleProject
 const projectMemberOutsideSpaceCopy = spaceAccessErrorStateCopy.projectMemberOutsideSpace;
 const duplicateProjectNameCopy = spaceAccessErrorStateCopy.duplicateProjectName;
 const networkErrorCopy = spaceAccessErrorStateCopy.network;
+const deleteSpaceBlockedCopy = spaceAccessErrorStateCopy.deleteSpaceBlocked;
+const deleteProjectBlockedCopy = spaceAccessErrorStateCopy.deleteProjectBlocked;
 
 const pageError = computed(() => validationError.value ?? error.value);
 const isProjectMemberOutsideSpaceError = computed(
@@ -81,15 +99,19 @@ const isDuplicateProjectNameError = computed(
   () => pageError.value === duplicateProjectNameCopy.message,
 );
 const isNetworkError = computed(() => pageError.value === networkErrorCopy.message);
+const isDeleteSpaceBlockedError = computed(
+  () => pageError.value === deleteSpaceBlockedCopy.message,
+);
+const isDeleteProjectBlockedError = computed(
+  () => pageError.value === deleteProjectBlockedCopy.message,
+);
 const showNoSpacesEmpty = computed(
   () => !spaces.value.length && !initializing.value && !loading.value && !error.value,
 );
 const showInitialLoadError = computed(
   () => !spaces.value.length && !initializing.value && Boolean(error.value),
 );
-const projectNameErrorText = computed(() =>
-  isDuplicateProjectNameError.value ? duplicateProjectNameCopy.message : projectNameError.value,
-);
+const projectNameErrorText = computed(() => projectNameError.value);
 
 const canCreateSpace = computed(
   () => spaceForm.name.trim().length > 0 && !saving.value && !loading.value,
@@ -298,6 +320,160 @@ async function createProject() {
   }
 }
 
+function openSpaceEditor() {
+  if (!selectedSpace.value || saving.value || loading.value) {
+    return;
+  }
+
+  clearPageError();
+  editSpaceNameError.value = null;
+  editSpaceForm.name = selectedSpace.value.name;
+  editSpaceForm.description = selectedSpace.value.description;
+  editSpaceDialogOpen.value = true;
+}
+
+function clearEditSpaceError() {
+  editSpaceNameError.value = null;
+  clearPageError();
+}
+
+async function saveSpaceEdits() {
+  if (!selectedSpace.value || saving.value || loading.value) {
+    return;
+  }
+
+  const name = editSpaceForm.name.trim();
+  if (!name) {
+    editSpaceNameError.value = 'Укажите название пространства.';
+    return;
+  }
+
+  clearPageError();
+  editSpaceNameError.value = null;
+  const spaceId = selectedSpace.value.id;
+  const projectId = selectedProject.value?.id;
+
+  try {
+    await spacesStore.updateSpace(spaceId, {
+      name,
+      description: editSpaceForm.description.trim(),
+    });
+    editSpaceDialogOpen.value = false;
+    await refreshAfterSave(spaceId, projectId);
+  } catch {
+    // Store keeps the normalized error while the dialog preserves the entered values.
+  }
+}
+
+function openProjectEditor() {
+  if (!selectedProject.value || saving.value || loading.value) {
+    return;
+  }
+
+  clearPageError();
+  editProjectNameError.value = null;
+  editProjectForm.name = selectedProject.value.name;
+  editProjectForm.description = selectedProject.value.description;
+  editProjectDialogOpen.value = true;
+}
+
+function clearEditProjectError() {
+  editProjectNameError.value = null;
+  clearPageError();
+}
+
+async function saveProjectEdits() {
+  if (!selectedSpace.value || !selectedProject.value || saving.value || loading.value) {
+    return;
+  }
+
+  const name = editProjectForm.name.trim();
+  if (!name) {
+    editProjectNameError.value = 'Укажите название проекта.';
+    return;
+  }
+
+  clearPageError();
+  editProjectNameError.value = null;
+  const spaceId = selectedSpace.value.id;
+  const projectId = selectedProject.value.id;
+
+  try {
+    await spacesStore.updateProject(spaceId, projectId, {
+      name,
+      description: editProjectForm.description.trim(),
+    });
+    editProjectDialogOpen.value = false;
+    await refreshAfterSave(spaceId, projectId);
+  } catch {
+    if (error.value === duplicateProjectNameCopy.message) {
+      editProjectNameError.value = duplicateProjectNameCopy.message;
+    }
+
+    // Store keeps the normalized error while the dialog preserves the entered values.
+  }
+}
+
+function requestSpaceDeletion() {
+  if (!selectedSpace.value || saving.value || loading.value) {
+    return;
+  }
+
+  clearPageError();
+  deleteSpaceDialogOpen.value = true;
+}
+
+async function confirmDeleteSpace() {
+  if (!selectedSpace.value || saving.value || loading.value) {
+    return;
+  }
+
+  clearPageError();
+  const spaceId = selectedSpace.value.id;
+
+  try {
+    await spacesStore.deleteSpace(spaceId);
+    deleteSpaceDialogOpen.value = false;
+
+    const nextSpace = spaces.value[0] ?? null;
+    selectedSpaceId.value = nextSpace?.id ?? '';
+    selectedProjectId.value = nextSpace?.projects[0]?.id ?? '';
+    await refreshAfterSave(nextSpace?.id ?? '');
+  } catch {
+    // A blocked deletion keeps the confirmation open and shows the normalized reason.
+  }
+}
+
+function requestProjectDeletion() {
+  if (!selectedProject.value || saving.value || loading.value) {
+    return;
+  }
+
+  clearPageError();
+  deleteProjectDialogOpen.value = true;
+}
+
+async function confirmDeleteProject() {
+  if (!selectedSpace.value || !selectedProject.value || saving.value || loading.value) {
+    return;
+  }
+
+  clearPageError();
+  const spaceId = selectedSpace.value.id;
+  const projectId = selectedProject.value.id;
+
+  try {
+    await spacesStore.deleteProject(spaceId, projectId);
+    deleteProjectDialogOpen.value = false;
+
+    const nextProjectId = selectedSpace.value?.projects[0]?.id ?? '';
+    selectedProjectId.value = nextProjectId;
+    await refreshAfterSave(spaceId, nextProjectId);
+  } catch {
+    // A blocked deletion keeps the confirmation open and shows the normalized reason.
+  }
+}
+
 async function addSpaceMember() {
   if (saving.value || loading.value) {
     return;
@@ -454,6 +630,14 @@ onMounted(async () => {
         <strong>{{ duplicateProjectNameCopy.title }}.</strong>
         {{ duplicateProjectNameCopy.message }}
       </template>
+      <template v-else-if="isDeleteSpaceBlockedError">
+        <strong>{{ deleteSpaceBlockedCopy.title }}.</strong>
+        {{ deleteSpaceBlockedCopy.message }}
+      </template>
+      <template v-else-if="isDeleteProjectBlockedError">
+        <strong>{{ deleteProjectBlockedCopy.title }}.</strong>
+        {{ deleteProjectBlockedCopy.message }}
+      </template>
       <template v-else-if="isNetworkError">
         <strong>{{ networkErrorCopy.title }}.</strong>
         {{ networkErrorCopy.message }}
@@ -571,8 +755,33 @@ onMounted(async () => {
       <div v-else-if="spaces.length" class="row q-col-gutter-md">
         <div class="col-12 col-lg-3">
           <q-card flat bordered class="workspace-panel">
-            <q-card-section>
-              <div class="text-subtitle1">Дерево пространств</div>
+            <q-card-section class="row items-center no-wrap">
+              <div class="col text-subtitle1">Дерево пространств</div>
+              <div class="col-auto row no-wrap q-gutter-xs">
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="edit"
+                  title="Редактировать пространство"
+                  aria-label="Редактировать пространство"
+                  :disable="!selectedSpace || saving || loading"
+                  data-test="edit-space-button"
+                  @click="openSpaceEditor"
+                />
+                <q-btn
+                  flat
+                  round
+                  dense
+                  color="negative"
+                  icon="delete"
+                  title="Удалить пространство"
+                  aria-label="Удалить пространство"
+                  :disable="!selectedSpace || saving || loading"
+                  data-test="delete-space-button"
+                  @click="requestSpaceDeletion"
+                />
+              </div>
             </q-card-section>
             <q-separator />
             <q-list separator>
@@ -599,10 +808,37 @@ onMounted(async () => {
 
         <div class="col-12 col-lg-4">
           <q-card flat bordered class="workspace-panel">
-            <q-card-section>
-              <div class="text-subtitle1">Проекты</div>
-              <div class="text-caption text-grey-7">
-                {{ selectedSpace?.name }}
+            <q-card-section class="row items-center no-wrap">
+              <div class="col">
+                <div class="text-subtitle1">Проекты</div>
+                <div class="text-caption text-grey-7">
+                  {{ selectedSpace?.name }}
+                </div>
+              </div>
+              <div class="col-auto row no-wrap q-gutter-xs">
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="edit"
+                  title="Редактировать проект"
+                  aria-label="Редактировать проект"
+                  :disable="!selectedProject || saving || loading"
+                  data-test="edit-project-button"
+                  @click="openProjectEditor"
+                />
+                <q-btn
+                  flat
+                  round
+                  dense
+                  color="negative"
+                  icon="delete"
+                  title="Удалить проект"
+                  aria-label="Удалить проект"
+                  :disable="!selectedProject || saving || loading"
+                  data-test="delete-project-button"
+                  @click="requestProjectDeletion"
+                />
               </div>
             </q-card-section>
             <q-separator />
@@ -837,11 +1073,169 @@ onMounted(async () => {
         </div>
       </div>
     </template>
+
+    <q-dialog v-model="editSpaceDialogOpen" persistent>
+      <q-card flat bordered class="workspace-dialog">
+        <q-form @submit.prevent="saveSpaceEdits">
+          <q-card-section>
+            <div class="text-h6">Редактировать пространство</div>
+          </q-card-section>
+          <q-card-section class="q-gutter-y-md q-pt-none">
+            <q-banner v-if="pageError" rounded class="bg-red-1 text-red-9">
+              {{ pageError }}
+            </q-banner>
+            <q-input
+              v-model="editSpaceForm.name"
+              outlined
+              autofocus
+              label="Название"
+              :error="Boolean(editSpaceNameError)"
+              :error-message="editSpaceNameError || undefined"
+              :disable="saving"
+              data-test="edit-space-name-input"
+              @update:model-value="clearEditSpaceError"
+            />
+            <q-input
+              v-model="editSpaceForm.description"
+              outlined
+              type="textarea"
+              autogrow
+              label="Описание"
+              :disable="saving"
+            />
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="Отмена" :disable="saving" @click="editSpaceDialogOpen = false" />
+            <q-btn
+              unelevated
+              color="primary"
+              label="Сохранить"
+              type="submit"
+              :loading="saving"
+              :disable="!editSpaceForm.name.trim()"
+              data-test="save-space-button"
+            />
+          </q-card-actions>
+        </q-form>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="editProjectDialogOpen" persistent>
+      <q-card flat bordered class="workspace-dialog">
+        <q-form @submit.prevent="saveProjectEdits">
+          <q-card-section>
+            <div class="text-h6">Редактировать проект</div>
+          </q-card-section>
+          <q-card-section class="q-gutter-y-md q-pt-none">
+            <q-banner v-if="pageError" rounded class="bg-red-1 text-red-9">
+              {{ pageError }}
+            </q-banner>
+            <q-input
+              v-model="editProjectForm.name"
+              outlined
+              autofocus
+              label="Название"
+              :error="Boolean(editProjectNameError)"
+              :error-message="editProjectNameError || undefined"
+              :disable="saving"
+              data-test="edit-project-name-input"
+              @update:model-value="clearEditProjectError"
+            />
+            <q-input
+              v-model="editProjectForm.description"
+              outlined
+              type="textarea"
+              autogrow
+              label="Описание"
+              :disable="saving"
+            />
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="Отмена" :disable="saving" @click="editProjectDialogOpen = false" />
+            <q-btn
+              unelevated
+              color="primary"
+              label="Сохранить"
+              type="submit"
+              :loading="saving"
+              :disable="!editProjectForm.name.trim()"
+              data-test="save-project-button"
+            />
+          </q-card-actions>
+        </q-form>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="deleteSpaceDialogOpen" persistent>
+      <q-card flat bordered class="workspace-dialog">
+        <q-card-section>
+          <div class="text-h6">Удалить пространство?</div>
+          <div class="text-body2 q-mt-sm">
+            Пространство «{{ selectedSpace?.name }}», его проекты и участники будут удалены.
+            Пространство с задачами удалить нельзя.
+          </div>
+        </q-card-section>
+        <q-banner v-if="isDeleteSpaceBlockedError" class="bg-red-1 text-red-9 q-mx-md">
+          {{ deleteSpaceBlockedCopy.message }}
+        </q-banner>
+        <q-banner v-else-if="pageError" class="bg-red-1 text-red-9 q-mx-md">
+          {{ pageError }}
+        </q-banner>
+        <q-card-actions align="right">
+          <q-btn flat label="Отмена" :disable="saving" @click="deleteSpaceDialogOpen = false" />
+          <q-btn
+            unelevated
+            color="negative"
+            icon="delete"
+            label="Удалить"
+            :loading="saving"
+            :disable="loading"
+            data-test="confirm-delete-space-button"
+            @click="confirmDeleteSpace"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <q-dialog v-model="deleteProjectDialogOpen" persistent>
+      <q-card flat bordered class="workspace-dialog">
+        <q-card-section>
+          <div class="text-h6">Удалить проект?</div>
+          <div class="text-body2 q-mt-sm">
+            Проект «{{ selectedProject?.name }}» и его участники будут удалены. Проект с задачами
+            удалить нельзя.
+          </div>
+        </q-card-section>
+        <q-banner v-if="isDeleteProjectBlockedError" class="bg-red-1 text-red-9 q-mx-md">
+          {{ deleteProjectBlockedCopy.message }}
+        </q-banner>
+        <q-banner v-else-if="pageError" class="bg-red-1 text-red-9 q-mx-md">
+          {{ pageError }}
+        </q-banner>
+        <q-card-actions align="right">
+          <q-btn flat label="Отмена" :disable="saving" @click="deleteProjectDialogOpen = false" />
+          <q-btn
+            unelevated
+            color="negative"
+            icon="delete"
+            label="Удалить"
+            :loading="saving"
+            :disable="loading"
+            data-test="confirm-delete-project-button"
+            @click="confirmDeleteProject"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
 <style scoped>
 .workspace-panel {
   min-height: 100%;
+}
+
+.workspace-dialog {
+  width: min(520px, 92vw);
 }
 </style>

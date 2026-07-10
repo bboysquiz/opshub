@@ -16,6 +16,8 @@ import {
   addSpaceMemberRecord,
   createProjectRecord,
   createSpaceRecord,
+  deleteProjectRecord,
+  deleteSpaceRecord,
   listProjectMembersRecord,
   listSpaceMembersRecord,
   listSpaceProjectsRecord,
@@ -84,6 +86,24 @@ export async function patchSpaceHandler(req: Request, res: Response): Promise<Re
   try {
     const space = await updateSpaceRecord(params.data.spaceId, parsed.data, req.user);
     return res.json(space);
+  } catch (err) {
+    return handleSpacesError(err, res);
+  }
+}
+
+export async function deleteSpaceHandler(req: Request, res: Response): Promise<Response> {
+  const params = spaceIdParamsSchema.safeParse(req.params);
+  if (!params.success) {
+    return res.status(400).json({ message: 'Invalid params' });
+  }
+
+  if (!req.user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  try {
+    await deleteSpaceRecord(params.data.spaceId, req.user);
+    return res.status(204).send();
   } catch (err) {
     return handleSpacesError(err, res);
   }
@@ -212,6 +232,24 @@ export async function patchProjectHandler(req: Request, res: Response): Promise<
       req.user,
     );
     return res.json(project);
+  } catch (err) {
+    return handleSpacesError(err, res);
+  }
+}
+
+export async function deleteProjectHandler(req: Request, res: Response): Promise<Response> {
+  const params = projectParamsSchema.safeParse(req.params);
+  if (!params.success) {
+    return res.status(400).json({ message: 'Invalid params' });
+  }
+
+  if (!req.user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  try {
+    await deleteProjectRecord(params.data.spaceId, params.data.projectId, req.user);
+    return res.status(204).send();
   } catch (err) {
     return handleSpacesError(err, res);
   }

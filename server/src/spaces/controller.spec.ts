@@ -9,6 +9,8 @@ vi.mock('./service', () => ({
   addSpaceMemberRecord: vi.fn(),
   createProjectRecord: vi.fn(),
   createSpaceRecord: vi.fn(),
+  deleteProjectRecord: vi.fn(),
+  deleteSpaceRecord: vi.fn(),
   listProjectMembersRecord: vi.fn(),
   listSpaceMembersRecord: vi.fn(),
   listSpaceProjectsRecord: vi.fn(),
@@ -24,7 +26,11 @@ import {
   addSpaceMemberHandler,
   createProjectHandler,
   createSpaceHandler,
+  deleteProjectHandler,
+  deleteSpaceHandler,
   listSpacesHandler,
+  patchProjectHandler,
+  patchSpaceHandler,
   removeSpaceMemberHandler,
 } from './controller';
 import * as spacesService from './service';
@@ -173,6 +179,40 @@ describe('spaces controller contracts', () => {
     expect(mockedSpacesService.createSpaceRecord).not.toHaveBeenCalled();
   });
 
+  it('updates a space and returns its refreshed DTO', async () => {
+    const updated = { ...spaceDto, name: 'Updated space', description: 'Updated' };
+    mockedSpacesService.updateSpaceRecord.mockResolvedValue(updated);
+    const res = createResponse();
+
+    await patchSpaceHandler(
+      createRequest({
+        user: adminActor,
+        params: { spaceId },
+        body: { name: '  Updated space  ', description: 'Updated' },
+      }),
+      res,
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual(updated);
+    expect(mockedSpacesService.updateSpaceRecord).toHaveBeenCalledWith(
+      spaceId,
+      { name: 'Updated space', description: 'Updated' },
+      adminActor,
+    );
+  });
+
+  it('deletes a space and returns 204 without body', async () => {
+    mockedSpacesService.deleteSpaceRecord.mockResolvedValue(undefined);
+    const res = createResponse();
+
+    await deleteSpaceHandler(createRequest({ user: adminActor, params: { spaceId } }), res);
+
+    expect(res.statusCode).toBe(204);
+    expect(res.sent).toBe(true);
+    expect(mockedSpacesService.deleteSpaceRecord).toHaveBeenCalledWith(spaceId, adminActor);
+  });
+
   it('creates a project inside a space and returns 201 DTO', async () => {
     mockedSpacesService.createProjectRecord.mockResolvedValue(projectDto);
     const res = createResponse();
@@ -212,6 +252,45 @@ describe('spaces controller contracts', () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.body).toEqual({ message: 'Space not found' });
+  });
+
+  it('updates a project inside its parent space', async () => {
+    const updated = { ...projectDto, name: 'Updated project' };
+    mockedSpacesService.updateProjectRecord.mockResolvedValue(updated);
+    const res = createResponse();
+
+    await patchProjectHandler(
+      createRequest({
+        user: adminActor,
+        params: { spaceId, projectId },
+        body: { name: 'Updated project' },
+      }),
+      res,
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual(updated);
+    expect(mockedSpacesService.updateProjectRecord).toHaveBeenCalledWith(
+      spaceId,
+      projectId,
+      { name: 'Updated project' },
+      adminActor,
+    );
+  });
+
+  it('returns 409 when deleting a project that still contains tickets', async () => {
+    mockedSpacesService.deleteProjectRecord.mockRejectedValue(
+      new SpacesError(409, 'Project contains tickets and cannot be deleted'),
+    );
+    const res = createResponse();
+
+    await deleteProjectHandler(
+      createRequest({ user: adminActor, params: { spaceId, projectId } }),
+      res,
+    );
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toEqual({ message: 'Project contains tickets and cannot be deleted' });
   });
 
   it('adds a space member and returns 201 member DTO', async () => {

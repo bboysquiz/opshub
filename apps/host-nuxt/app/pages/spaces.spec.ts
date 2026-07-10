@@ -15,6 +15,8 @@ const api = vi.hoisted(() => ({
   addSpaceMember: vi.fn(),
   createProject: vi.fn(),
   createSpace: vi.fn(),
+  deleteProject: vi.fn(),
+  deleteSpace: vi.fn(),
   listProjectMembers: vi.fn(),
   listSpaceMembers: vi.fn(),
   listSpaceProjects: vi.fn(),
@@ -55,10 +57,26 @@ type SpacesPageVm = {
     name: string;
     description: string;
   };
+  editSpaceForm: {
+    name: string;
+    description: string;
+  };
+  editProjectForm: {
+    name: string;
+    description: string;
+  };
   addProjectMember: () => Promise<void>;
   addSpaceMember: () => Promise<void>;
+  confirmDeleteProject: () => Promise<void>;
+  confirmDeleteSpace: () => Promise<void>;
   createProject: () => Promise<void>;
   createSpace: () => Promise<void>;
+  openProjectEditor: () => void;
+  openSpaceEditor: () => void;
+  requestProjectDeletion: () => void;
+  requestSpaceDeletion: () => void;
+  saveProjectEdits: () => Promise<void>;
+  saveSpaceEdits: () => Promise<void>;
 };
 
 const allUsers: AssignableUserDto[] = [
@@ -158,6 +176,16 @@ function installSpacesApiBackend() {
     spacesDb.push(space);
     return cloneSpace(space);
   });
+  api.updateSpace.mockImplementation(
+    async (spaceId: string, payload: { name?: string; description?: string }) => {
+      const space = findSpace(spaceId);
+      Object.assign(space, payload);
+      return cloneSpace(space);
+    },
+  );
+  api.deleteSpace.mockImplementation(async (spaceId: string) => {
+    spacesDb = spacesDb.filter((space) => space.id !== spaceId);
+  });
   api.createProject.mockImplementation(async (spaceId: string, payload: CreateProjectPayload) => {
     const space = findSpace(spaceId);
     const project: ProjectDto = {
@@ -176,6 +204,21 @@ function installSpacesApiBackend() {
     nextProjectIndex += 1;
     space.projects.push(project);
     return cloneProject(project);
+  });
+  api.updateProject.mockImplementation(
+    async (
+      spaceId: string,
+      projectId: string,
+      payload: { name?: string; description?: string },
+    ) => {
+      const project = findProject(spaceId, projectId);
+      Object.assign(project, payload);
+      return cloneProject(project);
+    },
+  );
+  api.deleteProject.mockImplementation(async (spaceId: string, projectId: string) => {
+    const space = findSpace(spaceId);
+    space.projects = space.projects.filter((project) => project.id !== projectId);
   });
   api.addSpaceMember.mockImplementation(async (spaceId: string, userId: string) => {
     const space = findSpace(spaceId);
@@ -276,5 +319,46 @@ describe('SpacesPage', () => {
         email: 'agent@example.com',
       }),
     ]);
+  });
+
+  it('edits and deletes the selected project and space', async () => {
+    const wrapper = mountSpacesPage();
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as SpacesPageVm;
+    vm.spaceForm.name = 'Ops';
+    await vm.createSpace();
+    vm.projectForm.name = 'Support';
+    await vm.createProject();
+
+    vm.openSpaceEditor();
+    vm.editSpaceForm.name = 'Operations';
+    vm.editSpaceForm.description = 'Updated space';
+    await vm.saveSpaceEdits();
+
+    expect(api.updateSpace).toHaveBeenCalledWith('space-1', {
+      name: 'Operations',
+      description: 'Updated space',
+    });
+
+    vm.openProjectEditor();
+    vm.editProjectForm.name = 'L1 Support';
+    vm.editProjectForm.description = 'Updated project';
+    await vm.saveProjectEdits();
+
+    expect(api.updateProject).toHaveBeenCalledWith('space-1', 'project-1', {
+      name: 'L1 Support',
+      description: 'Updated project',
+    });
+
+    vm.requestProjectDeletion();
+    await vm.confirmDeleteProject();
+    expect(api.deleteProject).toHaveBeenCalledWith('space-1', 'project-1');
+    expect(vm.selectedProjectId).toBe('');
+
+    vm.requestSpaceDeletion();
+    await vm.confirmDeleteSpace();
+    expect(api.deleteSpace).toHaveBeenCalledWith('space-1');
+    expect(vm.selectedSpaceId).toBe('');
   });
 });
