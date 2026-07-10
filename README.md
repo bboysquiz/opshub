@@ -190,6 +190,8 @@ Host загружает remotes на клиенте:
 
 Host site в Netlify должен оставлять `Base directory` равным `/` и использовать `Package directory` = `apps/host-nuxt`; поэтому `Publish directory` указывается от корня репозитория как `apps/host-nuxt/.output/public`. `host-nuxt` на Netlify собирается через `nuxt generate`, а `netlify:build` дополнительно пишет `_redirects` для `/api/*` и SPA fallback. Если указать `apps/host-nuxt/dist`, Netlify будет искать папку, которую Nuxt здесь не создает.
 
+В Netlify UI допустимо оставить `Build command` = `pnpm --filter host-nuxt build`: host script `build` делегирует в `netlify:build`, поэтому publish directory получает статический `index.html`, а не только assets из обычного `nuxt build`.
+
 Backend env для Netlify site `server`:
 
 ```env

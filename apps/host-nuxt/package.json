@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "clean": "node -e \"const fs=require('node:fs'); for (const dir of ['.nuxt','.output','dist','node_modules/.cache/nuxt']) fs.rmSync(dir,{recursive:true,force:true});\"",
-    "build": "pnpm run clean && nuxt build",
+    "build": "pnpm run netlify:build",
     "typecheck": "nuxt typecheck",
     "dev": "nuxt dev --port 3000",
     "generate": "pnpm run clean && nuxt generate",

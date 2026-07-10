@@ -12,6 +12,8 @@ Nuxt host-shell для OpsHub. Host собирается как статичес
   publish = "apps/host-nuxt/.output/public"
 ```
 
+Если команда задана через Netlify UI, `pnpm --filter host-nuxt build` тоже корректна: script `build` делегирует в `netlify:build`, чтобы publish directory всегда содержал `index.html`.
+
 `netlify:build` делает две вещи:
 
 - генерирует статический host в `.output/public`;
