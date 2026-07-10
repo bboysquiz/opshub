@@ -1,6 +1,6 @@
 # OpsHub Host
 
-Nuxt host-shell для OpsHub. Host собирается как статический Netlify site через `nuxt generate`, публикует `.output/public`, подключает remote entry-файлы и обращается к backend через same-origin `/api`.
+Nuxt host-shell для OpsHub. Host собирается как статический Netlify site через `nuxt generate`, публикует `dist`, подключает remote entry-файлы и обращается к backend через same-origin `/api`.
 
 ## Netlify
 
@@ -9,15 +9,16 @@ Nuxt host-shell для OpsHub. Host собирается как статичес
 ```toml
 [build]
   command = "pnpm --filter host-nuxt netlify:build"
-  publish = "apps/host-nuxt/.output/public"
+  publish = "apps/host-nuxt/dist"
 ```
 
 Если команда задана через Netlify UI, `pnpm --filter host-nuxt build` тоже корректна: script `build` делегирует в `netlify:build`, чтобы publish directory всегда содержал `index.html`.
 
 `netlify:build` делает две вещи:
 
-- генерирует статический host в `.output/public`;
-- записывает `.output/public/_redirects` с `/api/* -> NETLIFY_API_PROXY_URL/:splat` и SPA fallback `/* -> /index.html`.
+- генерирует статический host через `nuxt generate`;
+- готовит стабильную publish-папку `dist`: на Netlify Nuxt уже генерирует `dist`, а локально скрипт копирует туда `.output/public`;
+- записывает `dist/_redirects` с `/api/* -> NETLIFY_API_PROXY_URL/:splat` и SPA fallback `/* -> /index.html`.
 
 Обязательные env для production/preview/staging:
 
