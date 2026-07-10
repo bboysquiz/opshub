@@ -198,6 +198,10 @@ type TicketsPageVm = {
     active: boolean;
     ticketCount: number;
   }>;
+  quickProjectFilterAriaLabel: string;
+  allProjectsShortcutLabel: string;
+  allProjectsShortcutAriaLabel: string;
+  projectShortcutAriaLabel: (projectName: string) => string;
   projectSelectOptions: Array<{
     label: string;
     value: string;
@@ -248,7 +252,12 @@ function createTicket(overrides: Partial<LocalTicket> = {}): LocalTicket {
   };
 }
 
-function mountTicketsPage() {
+function mountTicketsPage(
+  props: Partial<{
+    initialSpaceId: string | null;
+    initialProjectId: string | null;
+  }> = {},
+) {
   return shallowMount(TicketsPage, {
     props: {
       currentUserId: 'user-1',
@@ -257,6 +266,7 @@ function mountTicketsPage() {
       canUpdateTickets: true,
       canDeleteTickets: true,
       useNewTicketsTable: false,
+      ...props,
     },
   });
 }
@@ -347,6 +357,27 @@ describe('TicketsPage', () => {
     ]);
     expect(wrapper.exists()).toBe(true);
     expect(syncStore.queueSize).toBe(1);
+  });
+
+  it('keeps the project route scoped to its project after filters are cleared', async () => {
+    ticketsStore.visibleTickets = [
+      createTicket({ id: 'ticket-1', projectId: 'project-1', spaceId: 'space-1' }),
+      createTicket({ id: 'ticket-2', projectId: 'project-2', spaceId: 'space-2' }),
+    ];
+
+    const wrapper = mountTicketsPage({
+      initialSpaceId: 'space-1',
+      initialProjectId: 'project-1',
+    });
+    await flushPromises();
+
+    const vm = wrapper.vm as unknown as TicketsPageVm;
+    expect(vm.projectSelectOptions).toEqual([{ label: 'Ops / Support', value: 'project-1' }]);
+    expect(vm.filters).toMatchObject({ spaceId: 'space-1', projectId: 'project-1' });
+    expect(vm.rows.map((ticket) => ticket.id)).toEqual(['ticket-1']);
+
+    vm.clearProjectFilter();
+    expect(vm.rows.map((ticket) => ticket.id)).toEqual(['ticket-1']);
   });
 
   it('creates a ticket in the selected project and filters assignees by projectId', async () => {
@@ -497,6 +528,10 @@ describe('TicketsPage', () => {
       'project-2',
     ]);
     expect(vm.quickProjectFilterOptions.map((project) => project.ticketCount)).toEqual([1, 1]);
+    expect(vm.quickProjectFilterAriaLabel).toBe('Быстрый фильтр по проекту');
+    expect(vm.allProjectsShortcutLabel).toBe('Все проекты');
+    expect(vm.allProjectsShortcutAriaLabel).toBe('Показать тикеты всех доступных проектов');
+    expect(vm.projectShortcutAriaLabel('Support')).toBe('Показать тикеты проекта Support');
 
     const paymentsShortcut = vm.quickProjectFilterOptions[1];
     if (!paymentsShortcut) {

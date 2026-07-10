@@ -6,6 +6,8 @@ type TicketsRuntimeProps = {
   canUpdateTickets?: boolean;
   canDeleteTickets?: boolean;
   useNewTicketsTable?: boolean;
+  initialSpaceId?: string | null;
+  initialProjectId?: string | null;
 };
 
 const props = withDefaults(defineProps<TicketsRuntimeProps>(), {
@@ -15,6 +17,8 @@ const props = withDefaults(defineProps<TicketsRuntimeProps>(), {
   canUpdateTickets: true,
   canDeleteTickets: true,
   useNewTicketsTable: false,
+  initialSpaceId: null,
+  initialProjectId: null,
 });
 
 import TicketsPage from './features/tickets/ui/TicketsPage.vue';
@@ -28,5 +32,7 @@ import TicketsPage from './features/tickets/ui/TicketsPage.vue';
     :can-update-tickets="props.canUpdateTickets"
     :can-delete-tickets="props.canDeleteTickets"
     :use-new-tickets-table="props.useNewTicketsTable"
+    :initial-space-id="props.initialSpaceId"
+    :initial-project-id="props.initialProjectId"
   />
 </template>

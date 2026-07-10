@@ -1,43 +1,9 @@
-import {
-  QBadge,
-  ClosePopup,
-  Dark,
-  Dialog,
-  Notify,
-  QBanner,
-  QBtn,
-  QCard,
-  QCardActions,
-  QCardSection,
-  QForm,
-  QDrawer,
-  QHeader,
-  QIcon,
-  QInput,
-  QItem,
-  QItemLabel,
-  QItemSection,
-  QLayout,
-  QList,
-  QMenu,
-  QPage,
-  QPageContainer,
-  QSelect,
-  QSeparator,
-  QSpace,
-  QSpinner,
-  QTable,
-  QTd,
-  QToggle,
-  QToolbar,
-  QToolbarTitle,
-  Quasar,
-  Ripple,
-} from 'quasar';
+import { ClosePopup, Dark, Dialog, Notify, Quasar, Ripple } from 'quasar';
 import '@opshub/shared-ui/styles.css';
 import '@quasar/extras/material-icons/material-icons.css';
 import 'quasar/src/css/index.sass';
 import type { App } from 'vue';
+import { quasarComponents } from './quasarComponents';
 
 type QuasarWithSsrInstall = typeof Quasar & {
   install: (app: App, opts?: object, ssrContext?: object) => void;
@@ -51,36 +17,7 @@ export type QuasarSsrContext = {
 };
 
 const quasarOptions = {
-  components: {
-    QBadge,
-    QBanner,
-    QBtn,
-    QCard,
-    QCardActions,
-    QCardSection,
-    QForm,
-    QDrawer,
-    QHeader,
-    QIcon,
-    QInput,
-    QItem,
-    QItemLabel,
-    QItemSection,
-    QLayout,
-    QList,
-    QMenu,
-    QPage,
-    QPageContainer,
-    QSelect,
-    QSeparator,
-    QSpace,
-    QSpinner,
-    QTable,
-    QTd,
-    QToggle,
-    QToolbar,
-    QToolbarTitle,
-  },
+  components: quasarComponents,
   directives: {
     ClosePopup,
     Ripple,

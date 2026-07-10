@@ -103,7 +103,7 @@ export default defineNuxtConfig({
       suppressWarnings: true,
       navigateFallbackAllowlist: [
         /^\/$/,
-        /^\/(tickets|kb|analytics|notifications|profile|about)(\/.*)?$/,
+        /^\/(tickets|kb|analytics|notifications|profile|about|spaces|spaces-settings)(\/.*)?$/,
       ],
     },
   },

@@ -44,6 +44,8 @@ type TicketsPageProps = {
   canUpdateTickets?: boolean;
   canDeleteTickets?: boolean;
   useNewTicketsTable?: boolean;
+  initialSpaceId?: string | null;
+  initialProjectId?: string | null;
 };
 
 const props = withDefaults(defineProps<TicketsPageProps>(), {
@@ -53,7 +55,17 @@ const props = withDefaults(defineProps<TicketsPageProps>(), {
   canUpdateTickets: true,
   canDeleteTickets: true,
   useNewTicketsTable: false,
+  initialSpaceId: null,
+  initialProjectId: null,
 });
+
+const quickProjectFilterAriaLabel = 'Быстрый фильтр по проекту';
+const allProjectsShortcutLabel = 'Все проекты';
+const allProjectsShortcutAriaLabel = 'Показать тикеты всех доступных проектов';
+
+function projectShortcutAriaLabel(projectName: string): string {
+  return `Показать тикеты проекта ${projectName}`;
+}
 
 const {
   notifyConflictDetected,
@@ -333,6 +345,14 @@ const statusOptions: Array<{ label: string; value: TicketStatus }> = [
 
 const rows = computed(() =>
   visibleTickets.value.filter((ticket) => {
+    if (props.initialSpaceId && ticket.spaceId !== props.initialSpaceId) {
+      return false;
+    }
+
+    if (props.initialProjectId && ticket.projectId !== props.initialProjectId) {
+      return false;
+    }
+
     const titleFilter = filters.title.trim().toLowerCase();
     const createdAtFilter = filters.createdAt.trim().toLowerCase();
     const updatedFromTimestamp = parseDateTimeFilter(filters.updatedFrom, 'start');
@@ -746,7 +766,23 @@ function handleRowClick(_event: Event, row: LocalTicket) {
 
 async function loadProjectOptions() {
   try {
-    projectOptions.value = await spacesApi.listTicketProjects();
+    const availableProjects = await spacesApi.listTicketProjects();
+    projectOptions.value = availableProjects.filter(
+      (project) =>
+        (!props.initialSpaceId || project.spaceId === props.initialSpaceId) &&
+        (!props.initialProjectId || project.projectId === props.initialProjectId),
+    );
+
+    const initialProject = projectOptions.value.find(
+      (project) => !props.initialProjectId || project.projectId === props.initialProjectId,
+    );
+
+    if (initialProject) {
+      filters.spaceId = initialProject.spaceId;
+      filters.projectId = initialProject.projectId;
+    } else if (props.initialSpaceId) {
+      filters.spaceId = props.initialSpaceId;
+    }
 
     if (!form.projectId && projectOptions.value[0]) {
       form.projectId = projectOptions.value[0].projectId;
@@ -1393,7 +1429,7 @@ onBeforeUnmount(() => {
     <div
       v-if="quickProjectFilterOptions.length > 0"
       class="tickets-page__project-shortcuts q-mb-md"
-      aria-label="Р‘С‹СЃС‚СЂС‹Р№ С„РёР»СЊС‚СЂ РїРѕ РїСЂРѕРµРєС‚Сѓ"
+      :aria-label="quickProjectFilterAriaLabel"
     >
       <q-btn
         dense
@@ -1401,8 +1437,8 @@ onBeforeUnmount(() => {
         :outline="Boolean(filters.projectId)"
         :unelevated="!filters.projectId"
         color="primary"
-        label="Р’СЃРµ РїСЂРѕРµРєС‚С‹"
-        aria-label="РџРѕРєР°Р·Р°С‚СЊ С‚РёРєРµС‚С‹ РІСЃРµС… РґРѕСЃС‚СѓРїРЅС‹С… РїСЂРѕРµРєС‚РѕРІ"
+        :label="allProjectsShortcutLabel"
+        :aria-label="allProjectsShortcutAriaLabel"
         @click="clearProjectFilter"
       />
       <q-btn
@@ -1414,7 +1450,7 @@ onBeforeUnmount(() => {
         :unelevated="project.active"
         color="primary"
         :label="`${project.projectName} (${project.ticketCount})`"
-        :aria-label="`РџРѕРєР°Р·Р°С‚СЊ С‚РёРєРµС‚С‹ РїСЂРѕРµРєС‚Р° ${project.projectName}`"
+        :aria-label="projectShortcutAriaLabel(project.projectName)"
         @click="setProjectFilter(project)"
       />
     </div>

@@ -22,9 +22,13 @@ const accessRules: AccessRule[] = [
     requiresAuth: true,
   },
   {
-    test: (path) => path.startsWith('/spaces'),
+    test: (path) => path.startsWith('/spaces-settings'),
     requiresAuth: true,
     permission: 'manageWorkspaces',
+  },
+  {
+    test: (path) => path.startsWith('/spaces'),
+    requiresAuth: true,
   },
 ];
 

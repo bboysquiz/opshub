@@ -92,11 +92,18 @@
             <q-item-section>Уведомления</q-item-section>
           </q-item>
 
-          <q-item v-if="auth.canManageWorkspaces" v-ripple clickable to="/spaces">
+          <q-item v-if="auth.isAuthenticated" v-ripple clickable to="/spaces">
             <q-item-section avatar>
               <q-icon name="workspaces" />
             </q-item-section>
-            <q-item-section> Пространства </q-item-section>
+            <q-item-section>Пространства</q-item-section>
+          </q-item>
+
+          <q-item v-if="auth.canManageWorkspaces" v-ripple clickable to="/spaces-settings">
+            <q-item-section avatar>
+              <q-icon name="settings_suggest" />
+            </q-item-section>
+            <q-item-section>Настройка пространств</q-item-section>
           </q-item>
 
           <q-separator spaced />

@@ -4,6 +4,7 @@ export async function navigateTo(path: string) {
 
 export function useRoute() {
   return {
+    params: {},
     query: {},
   };
 }

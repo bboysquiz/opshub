@@ -8,7 +8,7 @@ import type {
   ProjectDto,
   SpaceDto,
 } from '~/utils/spacesApi';
-import SpacesPage from './spaces.vue';
+import SpacesSettingsPage from './spaces-settings.vue';
 
 const api = vi.hoisted(() => ({
   addProjectMember: vi.fn(),
@@ -250,14 +250,14 @@ function installSpacesApiBackend() {
 }
 
 function mountSpacesPage() {
-  return shallowMount(SpacesPage, {
+  return shallowMount(SpacesSettingsPage, {
     global: {
       plugins: [createPinia()],
     },
   });
 }
 
-describe('SpacesPage', () => {
+describe('SpacesSettingsPage', () => {
   beforeEach(() => {
     installSpacesApiBackend();
   });
