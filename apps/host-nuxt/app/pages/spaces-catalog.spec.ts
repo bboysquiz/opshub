@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { nextTick, type Component } from 'vue';
 import type { SpaceDto } from '~/utils/spacesApi';
-import SpacesPage from './spaces.vue';
-import SpacePage from './spaces/[spaceId].vue';
+import SpacesPage from './spaces/index.vue';
+import SpacePage from './spaces/[spaceId]/index.vue';
 import ProjectPage from './spaces/[spaceId]/projects/[projectId].vue';
 
 const { api, navigateTo, route } = vi.hoisted(() => ({

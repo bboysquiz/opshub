@@ -2,7 +2,6 @@ import bcrypt from 'bcryptjs';
 import { pool } from '../db';
 import { AuthError, isAuthError, isPgUniqueViolation } from './errors';
 import {
-  countUsers,
   countUsersByRole,
   createRefreshSession,
   createUser,
@@ -51,7 +50,7 @@ function isExpired(expiresAt: Date | string): boolean {
 export async function register(input: RegisterInput, meta: SessionMeta): Promise<RegisterResponse> {
   const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
   const email = input.email.toLowerCase();
-  const role: Role = (await countUsers()) === 0 ? 'admin' : 'employee';
+  const role: Role = (await countUsersByRole('admin')) === 0 ? 'admin' : 'employee';
 
   let user: SafeUser;
   try {
