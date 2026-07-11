@@ -18,10 +18,6 @@ const project = computed(
 const backToSpacePath = computed(() => `/spaces/${encodeURIComponent(spaceId.value)}`);
 
 async function loadProject() {
-  if (loading.value) {
-    return;
-  }
-
   initializing.value = true;
   spacesStore.clearError();
 

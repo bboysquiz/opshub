@@ -54,6 +54,8 @@ describe('tickets dataSource', () => {
     resetTicketsMemoryCache();
     vi.mocked(ticketsDb.tickets.toArray).mockReset();
     vi.mocked(ticketsDb.tickets.bulkPut).mockReset();
+    vi.mocked(ticketsDb.queue.toArray).mockReset();
+    vi.mocked(ticketsDb.queue.toArray).mockResolvedValue([]);
     vi.mocked(ticketsApi.list).mockReset();
     vi.mocked(setMeta).mockReset();
   });
@@ -78,6 +80,20 @@ describe('tickets dataSource', () => {
         createdAt: '2025-01-02T09:00:00.000Z',
       }),
     ]);
+    vi.mocked(ticketsDb.queue.toArray).mockResolvedValue([
+      {
+        id: 'command-1',
+        ticketId: 'ticket-1',
+        type: 'update',
+        payload: { title: 'Локальный черновик' },
+        createdAt: '2025-01-01T10:01:00.000Z',
+        updatedAt: '2025-01-01T10:01:00.000Z',
+        tries: 0,
+        status: 'pending',
+        lastError: null,
+        baseUpdatedAt: '2025-01-01T10:00:00.000Z',
+      },
+    ]);
 
     const items = await refreshFromNetwork();
     const localItem = items.find((item) => item.id === 'ticket-1');
@@ -99,6 +115,56 @@ describe('tickets dataSource', () => {
     expect(items.find((item) => item.id === 'ticket-1')?.title).toBe('Локальный черновик');
     expect(vi.mocked(ticketsDb.tickets.bulkPut)).toHaveBeenCalledWith(items);
     expect(readFromMemory()?.map((item) => item.id)).toEqual(['ticket-2', 'ticket-1']);
+  });
+
+  it('restores a server ticket hidden by an orphaned local delete marker', async () => {
+    vi.mocked(ticketsDb.tickets.toArray).mockResolvedValue([
+      toLocalTicket(createTicket(), {
+        syncStatus: 'queued',
+        isDeleted: true,
+      }),
+    ]);
+    vi.mocked(ticketsDb.queue.toArray).mockResolvedValue([]);
+    vi.mocked(ticketsApi.list).mockResolvedValue([createTicket()]);
+
+    const items = await refreshFromNetwork();
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        id: 'ticket-1',
+        title: 'Серверный тикет',
+        syncStatus: 'synced',
+        isDeleted: false,
+      }),
+    ]);
+    expect(ticketsDb.tickets.bulkPut).toHaveBeenCalledWith(items);
+  });
+
+  it('keeps a ticket hidden while its delete command is still queued', async () => {
+    const deletedLocally = toLocalTicket(createTicket(), {
+      syncStatus: 'queued',
+      isDeleted: true,
+    });
+    vi.mocked(ticketsDb.tickets.toArray).mockResolvedValue([deletedLocally]);
+    vi.mocked(ticketsDb.queue.toArray).mockResolvedValue([
+      {
+        id: 'command-1',
+        ticketId: 'ticket-1',
+        type: 'delete',
+        payload: null,
+        createdAt: '2025-01-01T10:01:00.000Z',
+        updatedAt: '2025-01-01T10:01:00.000Z',
+        tries: 0,
+        status: 'pending',
+        lastError: null,
+        baseUpdatedAt: '2025-01-01T10:00:00.000Z',
+      },
+    ]);
+    vi.mocked(ticketsApi.list).mockResolvedValue([createTicket()]);
+
+    const items = await refreshFromNetwork();
+
+    expect(items).toEqual([deletedLocally]);
   });
 
   it('falls back to indexeddb for network_first when the request fails', async () => {

@@ -21,10 +21,6 @@ async function openProject(projectId: string) {
 }
 
 async function loadSpace() {
-  if (loading.value) {
-    return;
-  }
-
   initializing.value = true;
   spacesStore.clearError();
 

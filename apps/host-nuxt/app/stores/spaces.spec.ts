@@ -127,6 +127,31 @@ describe('spaces store', () => {
     expect(store.error).toBeNull();
   });
 
+  it('lets multiple pages await the same spaces request', async () => {
+    const space = makeSpace();
+    let resolveRequest: ((items: SpaceDto[]) => void) | undefined;
+    api.listSpaces.mockReturnValue(
+      new Promise<SpaceDto[]>((resolve) => {
+        resolveRequest = resolve;
+      }),
+    );
+
+    const store = useSpacesStore();
+    const catalogRequest = store.loadSpaces();
+    const detailsRequest = store.loadSpaces();
+
+    expect(api.listSpaces).toHaveBeenCalledTimes(1);
+    expect(store.loading).toBe(true);
+
+    resolveRequest?.([space]);
+    await expect(Promise.all([catalogRequest, detailsRequest])).resolves.toEqual([
+      [space],
+      [space],
+    ]);
+    expect(store.loading).toBe(false);
+    expect(store.spaces).toEqual([space]);
+  });
+
   it('normalizes stale project membership errors without clearing existing state', async () => {
     const member = makeMember();
     const project = makeProject({ members: [] });

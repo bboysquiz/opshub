@@ -99,6 +99,7 @@ export const useSpacesStore = defineStore('spaces', () => {
   const optionsLoading = computed(() => pending.options > 0);
   const busy = computed(() => loading.value || saving.value || optionsLoading.value);
   const hasSpaces = computed(() => spaces.value.length > 0);
+  let spacesRequest: Promise<SpaceDto[]> | null = null;
 
   function clearError() {
     error.value = null;
@@ -246,10 +247,21 @@ export const useSpacesStore = defineStore('spaces', () => {
     };
   }
 
-  async function loadSpaces(): Promise<SpaceDto[]> {
-    const items = await run('read', 'Failed to load spaces', () => api.listSpaces());
-    setSpaces(items);
-    return items;
+  function loadSpaces(): Promise<SpaceDto[]> {
+    if (spacesRequest) {
+      return spacesRequest;
+    }
+
+    spacesRequest = run('read', 'Failed to load spaces', () => api.listSpaces())
+      .then((items) => {
+        setSpaces(items);
+        return items;
+      })
+      .finally(() => {
+        spacesRequest = null;
+      });
+
+    return spacesRequest;
   }
 
   async function createSpace(payload: CreateSpacePayload): Promise<SpaceDto> {

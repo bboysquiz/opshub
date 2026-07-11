@@ -238,10 +238,6 @@ async function refreshAfterSave(spaceId: string, projectId?: string) {
 }
 
 async function initializePage() {
-  if (loading.value || optionsLoading.value) {
-    return;
-  }
-
   initializing.value = true;
   clearValidationState();
 

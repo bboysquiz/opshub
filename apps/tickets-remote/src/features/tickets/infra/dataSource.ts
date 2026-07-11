@@ -40,14 +40,18 @@ async function setReadDiagnostics(strategy: DataSourceStrategy, source: DataSour
   await setMeta('lastReadAt', nowIso());
 }
 
-function mergeRemoteIntoLocal(remoteTickets: TicketDto[], localTickets: LocalTicket[]) {
+function mergeRemoteIntoLocal(
+  remoteTickets: TicketDto[],
+  localTickets: LocalTicket[],
+  queuedTicketIds: ReadonlySet<string>,
+) {
   const localById = new Map(localTickets.map((ticket) => [ticket.id, ticket]));
   const merged: LocalTicket[] = [];
 
   for (const remoteTicket of remoteTickets) {
     const localTicket = localById.get(remoteTicket.id);
 
-    if (localTicket && hasPendingLocalState(localTicket)) {
+    if (localTicket && hasPendingLocalState(localTicket) && queuedTicketIds.has(localTicket.id)) {
       merged.push(localTicket);
     } else {
       merged.push(toLocalTicket(remoteTicket));
@@ -94,9 +98,13 @@ export async function readFromIdb(): Promise<LocalTicket[]> {
 }
 
 export async function refreshFromNetwork(): Promise<LocalTicket[]> {
-  const localItems = await ticketsDb.tickets.toArray();
-  const remoteItems = await ticketsApi.list();
-  const merged = mergeRemoteIntoLocal(remoteItems, localItems);
+  const [localItems, queuedCommands, remoteItems] = await Promise.all([
+    ticketsDb.tickets.toArray(),
+    ticketsDb.queue.toArray(),
+    ticketsApi.list(),
+  ]);
+  const queuedTicketIds = new Set(queuedCommands.map((command) => command.ticketId));
+  const merged = mergeRemoteIntoLocal(remoteItems, localItems, queuedTicketIds);
 
   await ticketsDb.tickets.bulkPut(merged);
   setMemory(merged);

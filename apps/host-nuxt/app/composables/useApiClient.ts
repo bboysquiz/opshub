@@ -5,6 +5,8 @@ export type ApiClientRequestOptions = {
   csrf?: boolean;
 };
 
+const API_TIMEOUT_MS = 15_000;
+
 export class ApiClientError extends Error {
   constructor(
     message: string,
@@ -59,11 +61,22 @@ export function useApiClient() {
       headers.set('x-csrf-token', await auth.ensureCsrfToken());
     }
 
-    const res = await fetch(`${apiBaseUrl}${path}`, {
-      ...init,
-      headers,
-      credentials: 'include',
-    });
+    let res: Response;
+
+    try {
+      res = await fetch(`${apiBaseUrl}${path}`, {
+        ...init,
+        headers,
+        credentials: 'include',
+        signal: init.signal ?? AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'TimeoutError') {
+        throw new ApiClientError('Сервер не ответил вовремя. Повторите запрос.', 408);
+      }
+
+      throw error;
+    }
 
     if (!res.ok) {
       throw new ApiClientError(await readApiError(res), res.status);

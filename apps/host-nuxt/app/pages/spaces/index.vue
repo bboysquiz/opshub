@@ -17,10 +17,6 @@ async function openSpace(spaceId: string) {
 }
 
 async function loadSpaces() {
-  if (loading.value) {
-    return;
-  }
-
   initializing.value = true;
   spacesStore.clearError();
 
