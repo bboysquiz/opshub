@@ -13,5 +13,6 @@ describe('default layout workspace navigation', () => {
       'v-if="auth.canManageWorkspaces" v-ripple clickable to="/spaces-settings"',
     );
     expect(source).toContain('Настройка пространств');
+    expect(source).not.toContain('clickable to="/tickets"');
   });
 });

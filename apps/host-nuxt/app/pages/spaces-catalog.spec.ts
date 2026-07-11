@@ -8,16 +8,18 @@ import SpacesPage from './spaces.vue';
 import SpacePage from './spaces/[spaceId].vue';
 import ProjectPage from './spaces/[spaceId]/projects/[projectId].vue';
 
-const { api, route } = vi.hoisted(() => ({
+const { api, navigateTo, route } = vi.hoisted(() => ({
   api: {
     listSpaces: vi.fn(),
   },
+  navigateTo: vi.fn(),
   route: {
     params: {} as Record<string, string>,
   },
 }));
 
 vi.mock('#imports', () => ({
+  navigateTo,
   useRoute: () => route,
 }));
 
@@ -73,6 +75,8 @@ async function finishLoading() {
 describe('spaces catalog navigation', () => {
   beforeEach(() => {
     route.params = {};
+    navigateTo.mockReset();
+    navigateTo.mockResolvedValue(undefined);
     api.listSpaces.mockReset();
     api.listSpaces.mockResolvedValue([space]);
   });
@@ -83,7 +87,14 @@ describe('spaces catalog navigation', () => {
 
     expect((wrapper.vm as unknown as { initializing: boolean }).initializing).toBe(false);
     expect(api.listSpaces).toHaveBeenCalledTimes(1);
-    expect((wrapper.vm as unknown as { spaces: SpaceDto[] }).spaces).toEqual([space]);
+    const vm = wrapper.vm as unknown as {
+      spaces: SpaceDto[];
+      openSpace: (spaceId: string) => Promise<void>;
+    };
+    expect(vm.spaces).toEqual([space]);
+
+    await vm.openSpace('space-1');
+    expect(navigateTo).toHaveBeenCalledWith('/spaces/space-1');
   });
 
   it('shows projects for the selected space', async () => {
@@ -94,9 +105,13 @@ describe('spaces catalog navigation', () => {
     const vm = wrapper.vm as unknown as {
       space: SpaceDto | null;
       projectPath: (projectId: string) => string;
+      openProject: (projectId: string) => Promise<void>;
     };
     expect(vm.space).toEqual(space);
     expect(vm.projectPath('project-1')).toBe('/spaces/space-1/projects/project-1');
+
+    await vm.openProject('project-1');
+    expect(navigateTo).toHaveBeenCalledWith('/spaces/space-1/projects/project-1');
   });
 
   it('opens tickets with a strict space and project context', async () => {

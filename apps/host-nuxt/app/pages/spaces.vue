@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { onMounted, ref } from 'vue';
+import { navigateTo } from '#imports';
 import { useSpacesStore } from '~/stores/spaces';
 
 const spacesStore = useSpacesStore();
@@ -9,6 +10,10 @@ const initializing = ref(true);
 
 function spacePath(spaceId: string): string {
   return `/spaces/${encodeURIComponent(spaceId)}`;
+}
+
+async function openSpace(spaceId: string) {
+  await navigateTo(spacePath(spaceId));
 }
 
 async function loadSpaces() {
@@ -82,8 +87,8 @@ onMounted(loadSpaces);
           :key="space.id"
           v-ripple
           clickable
-          :to="spacePath(space.id)"
           data-test="space-link"
+          @click="openSpace(space.id)"
         >
           <q-item-section avatar>
             <q-icon name="workspaces" color="primary" />

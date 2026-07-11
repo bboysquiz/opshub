@@ -64,13 +64,6 @@
         <q-list padding aria-label="Разделы приложения">
           <q-item-label header class="text-uppercase"> Рабочее пространство </q-item-label>
 
-          <q-item v-if="auth.isAuthenticated" v-ripple clickable to="/tickets">
-            <q-item-section avatar>
-              <q-icon name="confirmation_number" />
-            </q-item-section>
-            <q-item-section>Тикеты</q-item-section>
-          </q-item>
-
           <q-item v-ripple clickable to="/kb">
             <q-item-section avatar>
               <q-icon name="menu_book" />

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
-import { useRoute } from '#imports';
+import { navigateTo, useRoute } from '#imports';
 import { useSpacesStore } from '~/stores/spaces';
 
 const route = useRoute();
@@ -14,6 +14,10 @@ const space = computed(() => spaces.value.find((item) => item.id === spaceId.val
 
 function projectPath(projectId: string): string {
   return `/spaces/${encodeURIComponent(spaceId.value)}/projects/${encodeURIComponent(projectId)}`;
+}
+
+async function openProject(projectId: string) {
+  await navigateTo(projectPath(projectId));
 }
 
 async function loadSpace() {
@@ -92,8 +96,8 @@ onMounted(loadSpace);
             :key="project.id"
             v-ripple
             clickable
-            :to="projectPath(project.id)"
             data-test="project-link"
+            @click="openProject(project.id)"
           >
             <q-item-section avatar>
               <q-icon name="folder" color="primary" />
