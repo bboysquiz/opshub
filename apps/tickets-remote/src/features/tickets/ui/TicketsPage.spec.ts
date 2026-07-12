@@ -168,6 +168,8 @@ vi.mock('@opshub/shared-ui', async () => {
 import TicketsPage from './TicketsPage.vue';
 
 type TicketsPageVm = {
+  dialogOpen: boolean;
+  detailsDialogOpen: boolean;
   form: {
     projectId: string;
     title: string;
@@ -218,6 +220,7 @@ type TicketsPageVm = {
     spaceName: string;
   }) => void;
   clearProjectFilter: () => void;
+  openCreate: () => void;
   openView: (ticket: LocalTicket) => void;
   submit: () => Promise<void>;
   submitViewedTicket: () => Promise<void>;
@@ -404,6 +407,8 @@ describe('TicketsPage', () => {
     await flushPromises();
 
     const vm = wrapper.vm as unknown as TicketsPageVm;
+    vm.openCreate();
+    expect(vm.dialogOpen).toBe(true);
     expect(vm.assignableUserOptions).toEqual([
       {
         label: 'agent@example.com (agent)',
@@ -443,6 +448,7 @@ describe('TicketsPage', () => {
       dueAt: null,
     });
     expect(ticketsNotify.notifySavedLocally).toHaveBeenCalledWith('created');
+    expect(vm.dialogOpen).toBe(false);
   });
 
   it('updates ticket project from the details form and reloads assignees for that project', async () => {
@@ -455,6 +461,7 @@ describe('TicketsPage', () => {
     const vm = wrapper.vm as unknown as TicketsPageVm;
     vm.openView(ticket);
     await flushPromises();
+    expect(vm.detailsDialogOpen).toBe(true);
     vm.detailsForm.projectId = 'project-2';
     await flushPromises();
     vm.detailsForm.assignedTo = 'agent-2';
@@ -473,6 +480,7 @@ describe('TicketsPage', () => {
       }),
     );
     expect(ticketsNotify.notifySavedLocally).toHaveBeenCalledWith('updated');
+    expect(vm.detailsDialogOpen).toBe(false);
   });
 
   it('exposes project column data and detail label for tickets', async () => {

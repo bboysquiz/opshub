@@ -878,6 +878,7 @@ async function submitViewedTicket() {
     }
 
     notifySavedLocally('updated');
+    detailsDialogOpen.value = false;
 
     const updatedTicket =
       visibleTickets.value.find((ticket) => ticket.id === viewingTicket.value?.id) ?? null;
@@ -1894,12 +1895,18 @@ onBeforeUnmount(() => {
 }
 
 .tickets-page__sync-strip {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 2100;
   display: grid;
   gap: 0.4rem;
+  width: min(32rem, calc(100vw - 2rem));
   padding: 0.9rem 1rem;
   border: 1px solid rgb(191 219 254);
-  border-radius: 16px;
+  border-radius: 8px;
   background: rgb(239 246 255);
+  box-shadow: 0 10px 28px rgb(15 23 42 / 0.16);
   transition:
     box-shadow 180ms ease,
     border-color 180ms ease;
@@ -2087,6 +2094,12 @@ onBeforeUnmount(() => {
   .tickets-page__sync-strip-meta {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .tickets-page__sync-strip {
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    width: min(32rem, calc(100vw - 1.5rem));
   }
 
   .tickets-page__details-grid {
