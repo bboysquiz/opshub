@@ -69,6 +69,11 @@ const projectDto: ProjectDto = {
   createdByEmail: adminActor.email,
   updatedAt: createdAt,
   createdAt,
+  ticketStats: {
+    total: 7,
+    open: 3,
+    inProgress: 2,
+  },
   members: [memberDto],
 };
 

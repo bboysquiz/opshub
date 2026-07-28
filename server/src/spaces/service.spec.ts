@@ -8,8 +8,17 @@ import {
   findProjectById,
   findSpaceById,
   findSpaceMember,
+  listProjectMembersByProjectIds,
+  listProjectsBySpaceIds,
+  listSpaceMembersBySpaceIds,
+  listSpacesForActor,
 } from './repository';
-import { addProjectMemberRecord, deleteProjectRecord, deleteSpaceRecord } from './service';
+import {
+  addProjectMemberRecord,
+  deleteProjectRecord,
+  deleteSpaceRecord,
+  listSpacesTree,
+} from './service';
 import type { ProjectMemberRow, ProjectRow, SpaceMemberRow, SpaceRow } from './types';
 
 vi.mock('../db', () => ({
@@ -74,6 +83,9 @@ const projectRow: ProjectRow = {
   created_by_email: adminActor.email,
   updated_at: createdAt,
   created_at: createdAt,
+  ticket_count: 7,
+  open_ticket_count: 3,
+  in_progress_ticket_count: 2,
 };
 
 const spaceRow: SpaceRow = {
@@ -119,10 +131,34 @@ const mockedFindSpaceMember = vi.mocked(findSpaceMember);
 const mockedAddProjectMember = vi.mocked(addProjectMember);
 const mockedDeleteProjectById = vi.mocked(deleteProjectById);
 const mockedDeleteSpaceById = vi.mocked(deleteSpaceById);
+const mockedListSpacesForActor = vi.mocked(listSpacesForActor);
+const mockedListSpaceMembersBySpaceIds = vi.mocked(listSpaceMembersBySpaceIds);
+const mockedListProjectsBySpaceIds = vi.mocked(listProjectsBySpaceIds);
+const mockedListProjectMembersByProjectIds = vi.mocked(listProjectMembersByProjectIds);
 
 describe('spaces service contracts', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+  });
+
+  it('includes project ticket totals and active status counts in the spaces tree', async () => {
+    mockedListSpacesForActor.mockResolvedValue([spaceRow]);
+    mockedListSpaceMembersBySpaceIds.mockResolvedValue([]);
+    mockedListProjectsBySpaceIds.mockResolvedValue([projectRow]);
+    mockedListProjectMembersByProjectIds.mockResolvedValue([]);
+
+    const result = await listSpacesTree(adminActor);
+
+    expect(result[0]?.projects[0]?.ticketStats).toEqual({
+      total: 7,
+      open: 3,
+      inProgress: 2,
+    });
+    expect(mockedListProjectsBySpaceIds).toHaveBeenCalledWith({
+      spaceIds: [spaceId],
+      actorId: adminActor.sub,
+      includeAll: true,
+    });
   });
 
   it('adds a project member when the user belongs to the parent space', async () => {

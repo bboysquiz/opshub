@@ -60,6 +60,11 @@ function mapProject(row: ProjectRow, members: MemberDto[] = []): ProjectDto {
     createdByEmail: row.created_by_email,
     updatedAt: row.updated_at,
     createdAt: row.created_at,
+    ticketStats: {
+      total: row.ticket_count,
+      open: row.open_ticket_count,
+      inProgress: row.in_progress_ticket_count,
+    },
     members,
   };
 }

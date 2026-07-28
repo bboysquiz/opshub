@@ -20,6 +20,9 @@ export type ProjectRow = {
   created_by_email: string | null;
   updated_at: Date | string;
   created_at: Date | string;
+  ticket_count: number;
+  open_ticket_count: number;
+  in_progress_ticket_count: number;
 };
 
 export type SpaceMemberRow = {
@@ -56,6 +59,11 @@ export type ProjectDto = {
   createdByEmail: string | null;
   updatedAt: Date | string;
   createdAt: Date | string;
+  ticketStats: {
+    total: number;
+    open: number;
+    inProgress: number;
+  };
   members: MemberDto[];
 };
 

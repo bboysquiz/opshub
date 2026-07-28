@@ -34,6 +34,11 @@ describe('useSpacesApi', () => {
       createdByEmail: null,
       updatedAt: '2026-01-01T00:00:00.000Z',
       createdAt: '2026-01-01T00:00:00.000Z',
+      ticketStats: {
+        total: 0,
+        open: 0,
+        inProgress: 0,
+      },
       members: [],
     });
 

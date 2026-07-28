@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia';
 import { computed, onMounted, ref } from 'vue';
 import { navigateTo, useRoute } from '#imports';
 import { useSpacesStore } from '~/stores/spaces';
+import type { ProjectDto } from '~/utils/spacesApi';
 
 const route = useRoute();
 const spacesStore = useSpacesStore();
@@ -14,6 +15,15 @@ const space = computed(() => spaces.value.find((item) => item.id === spaceId.val
 
 function projectPath(projectId: string): string {
   return `/spaces/${encodeURIComponent(spaceId.value)}/projects/${encodeURIComponent(projectId)}`;
+}
+
+function projectStatsLabel(project: ProjectDto): string {
+  return [
+    `Участников: ${project.members.length}`,
+    `Задач: ${project.ticketStats.total}`,
+    `Открыто: ${project.ticketStats.open}`,
+    `В работе: ${project.ticketStats.inProgress}`,
+  ].join(' · ');
 }
 
 async function openProject(projectId: string) {
@@ -105,7 +115,9 @@ onMounted(loadSpace);
               <q-item-label v-if="project.description" caption>
                 {{ project.description }}
               </q-item-label>
-              <q-item-label caption> {{ project.members.length }} участников </q-item-label>
+              <q-item-label caption data-test="project-stats">
+                {{ projectStatsLabel(project) }}
+              </q-item-label>
             </q-item-section>
             <q-item-section v-if="project.archivedAt" side>
               <q-badge color="grey-7" label="Архив" />

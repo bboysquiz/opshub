@@ -32,7 +32,22 @@ const PROJECT_COLUMNS = `
   projects.created_by,
   creator.email as created_by_email,
   projects.updated_at,
-  projects.created_at
+  projects.created_at,
+  project_ticket_stats.ticket_count,
+  project_ticket_stats.open_ticket_count,
+  project_ticket_stats.in_progress_ticket_count
+`;
+
+const PROJECT_TICKET_STATS_JOIN = `
+  left join lateral (
+    select
+      count(*)::integer as ticket_count,
+      (count(*) filter (where tickets.status = 'open'))::integer as open_ticket_count,
+      (count(*) filter (where tickets.status = 'in_progress'))::integer
+        as in_progress_ticket_count
+    from tickets
+    where tickets.project_id = projects.id
+  ) project_ticket_stats on true
 `;
 
 export async function listSpacesForActor(
@@ -256,6 +271,7 @@ export async function listProjectsForSpace(
     `select ${PROJECT_COLUMNS}
      from projects
      left join users creator on creator.id = projects.created_by
+     ${PROJECT_TICKET_STATS_JOIN}
      where projects.space_id = $1
        and (
          $3::boolean
@@ -283,6 +299,7 @@ export async function listProjectsBySpaceIds(
     `select ${PROJECT_COLUMNS}
      from projects
      left join users creator on creator.id = projects.created_by
+     ${PROJECT_TICKET_STATS_JOIN}
      where projects.space_id = any($1::uuid[])
        and (
          $3::boolean
@@ -309,6 +326,7 @@ export async function findProjectById(
     `select ${PROJECT_COLUMNS}
      from projects
      left join users creator on creator.id = projects.created_by
+     ${PROJECT_TICKET_STATS_JOIN}
      where projects.space_id = $1
        and projects.id = $2
      limit 1`,

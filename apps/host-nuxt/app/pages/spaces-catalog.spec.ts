@@ -47,6 +47,11 @@ const space: SpaceDto = {
       createdByEmail: 'admin@example.com',
       updatedAt: '2026-01-01T00:00:00.000Z',
       createdAt: '2026-01-01T00:00:00.000Z',
+      ticketStats: {
+        total: 7,
+        open: 3,
+        inProgress: 2,
+      },
       members: [],
     },
   ],
@@ -103,12 +108,19 @@ describe('spaces catalog navigation', () => {
     await finishLoading();
 
     const vm = wrapper.vm as unknown as {
+      initializing: boolean;
       space: SpaceDto | null;
       projectPath: (projectId: string) => string;
+      projectStatsLabel: (project: SpaceDto['projects'][number]) => string;
       openProject: (projectId: string) => Promise<void>;
     };
+    await vi.waitFor(() => expect(vm.initializing).toBe(false));
+    await nextTick();
     expect(vm.space).toEqual(space);
     expect(vm.projectPath('project-1')).toBe('/spaces/space-1/projects/project-1');
+    expect(vm.projectStatsLabel(space.projects[0]!)).toBe(
+      'Участников: 0 · Задач: 7 · Открыто: 3 · В работе: 2',
+    );
 
     await vm.openProject('project-1');
     expect(navigateTo).toHaveBeenCalledWith('/spaces/space-1/projects/project-1');

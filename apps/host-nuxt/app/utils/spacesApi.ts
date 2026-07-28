@@ -31,6 +31,11 @@ export type ProjectDto = {
   createdByEmail: string | null;
   updatedAt: string;
   createdAt: string;
+  ticketStats: {
+    total: number;
+    open: number;
+    inProgress: number;
+  };
   members: MemberDto[];
 };
 

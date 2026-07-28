@@ -40,6 +40,11 @@ const project: ProjectDto = {
   createdByEmail: 'agent@example.com',
   updatedAt: '2026-01-01T00:00:00.000Z',
   createdAt: '2026-01-01T00:00:00.000Z',
+  ticketStats: {
+    total: 7,
+    open: 3,
+    inProgress: 2,
+  },
   members: [member],
 };
 

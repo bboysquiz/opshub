@@ -50,6 +50,11 @@ function makeProject(overrides: Partial<ProjectDto> = {}): ProjectDto {
     createdByEmail: 'admin@example.com',
     updatedAt: timestamp,
     createdAt: timestamp,
+    ticketStats: {
+      total: 0,
+      open: 0,
+      inProgress: 0,
+    },
     members: [],
     ...overrides,
   };
